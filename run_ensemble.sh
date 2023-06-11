@@ -1,9 +1,9 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=7-00:00:00
+#SBATCH --time=07-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
-#SBATCH --job-name=ensemble_run
+#SBATCH --job-name=ensemble_640
 #SBATCH --output=/home/syu7/logs/%u_%x_%j.out
 #SBATCH --array=1,2,3,4,5,6,7,8,9,10,11,12       # indices for random seeds to use
 # -------------------------------------------
@@ -22,7 +22,8 @@ echo "Starting run at: `date`"
 #  exit 1
 #fi
 
-CHOICE_DIR="/home/syu7/scratch/2d_helium/trial"
+# Enter your source path here
+CHOICE_DIR="/home/syu7/scratch/graphene_helium/optimal_time_step_beta_0.0625/slices_640"
 echo "The provided directory path is: $CHOICE_DIR"
 
 # check if the provided directory is valid
@@ -45,6 +46,7 @@ else
   echo "Array task id already exists: $SLURM_ARRAY_TASK_ID"
 fi
 
+# use the task ID provided by the job submitter to select the seed
 SEED_NUMBER=$SLURM_ARRAY_TASK_ID
 
 # --------------------------------------------
@@ -54,12 +56,16 @@ echo "Starting an ensemble run for $NAME with random seed no. $SEED_NUMBER"
 echo ""
 # -------------------------------------------
 
-# with the sufficiently long projection time, run an ensemble: several simulations of the same run,
+# run an ensemble: run several simulations continuing where a run left off,
 # but using a different random seed for different simulations
 
-# all the data for the graphene-helium project goes into the $DATAPATH folder
+# all the data for the graphene-helium project should go into the $DATAPATH folder
 USER="/home/syu7"
-PROJECT="2d_helium"
+# ------------------
+# Enter your project name (which will affect the destination path)
+#-------------------
+PROJECT="graphene_helium"
+# ------------------
 DATAPATH="$USER/scratch/$PROJECT"
 
 # new directory for ensemble runs
@@ -70,27 +76,23 @@ mkdir -p "$ENSEMBLE_DIR"
 # to hold results from individual workers in the job array
 NEW="$ENSEMBLE_DIR/ensemble_"$NAME"/run_$SLURM_ARRAY_TASK_ID"
 mkdir -p "$NEW"
-find "$CHOICE_DIR" -type f -exec cp {} "$NEW" \;
+# don't copy subdirectories such as /images
+find "$CHOICE_DIR" -path $CHOICE_DIR/images -prune -o -exec cp {} "$NEW" \;
 
 # now, we have to replace the random seed file
 rm "$NEW/"$NAME".iseed"
 cp "$USER/scratch/random_seeds/seed"$SEED_NUMBER".iseed" "$NEW"
 mv "$NEW/seed"$SEED_NUMBER".iseed" "$NEW/$NAME.iseed"
 
-# also, add the restart option to the config file before running using `vpi`
-#CONFIG_FILENAME="$NEW/"$NAME".sy"
-#LAST_LINE=$(tail -n 1 "$CONFIG_FILENAME")
-#EXPECTED_STRING="RESTART"
-#if echo "$LAST_LINE" | grep -qF "$EXPECTED_STRING"; then
-#    echo "Restart option found in run configuration file"
-#else
-#    echo "Adding restart option to run configuration file"
-#    echo -e "\nRESTART" >> $CONFIG_FILENAME
-#fi
+CONFIG_FILE="$NEW/"$NAME".sy"
+# first, remove any empty lines in the config file
+sed -i '/^\s*$/d' "$CONFIG_FILE"
+# then add the RESTART directive if not already present
+grep -qxF 'RESTART' "$CONFIG_FILE" || echo 'RESTART' >> "$CONFIG_FILE"
 
 # start the simulation
 cd $NEW
 echo "$NAME" | ./vpi
 
 # plot the output files
-# gnuplot -e "dirname='$NEW'" "$USER/scratch/postprocessing/plot_files.p"
+gnuplot -e "dirname='$NEW'" "$USER/scratch/postprocessing/plot_files.p"

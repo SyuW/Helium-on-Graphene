@@ -17,16 +17,19 @@ echo ""
 # -------------------------------------------
 
 USER="/home/syu7"
-DATAPATH="$USER/scratch/graphene_helium"
+PROJECT="graphene_helium"
+DATAPATH="$USER/scratch/$PROJECT"
 SOURCEPATH="$USER/PIGS"
+# source path for copying over files necessary for running the simulations
 HELIUM_GRAPHENE="$USER/PIGS/WORK/tasks/helium_graphene_experiment"
-
-echo "Writing data to $DATAPATH"
 
 # find the optimal timestep for this system: ground state energy per particle
 # versus number of time slices used, denote tau = beta / time_slices as the imaginary time-step
-# then try to do a quartic fit on data points: a + b*tau*x^4
+# the average total energy is then calculated as (1/(n-n_0)) * sum_{i > n_0}(E_i)
+# where n_0 is the number of steps for the system to equilibrate, i.e. become uncorrelated wrt initial config
+# with datapoints representing average energies collected for different timesteps try to do a quartic fit: a + b*tau*x^4
 
+# use a fixed projection time for simulations of varying time-step
 BETA=0.0625
 
 # base directory for doing the optimal timestep search procedure
@@ -46,7 +49,8 @@ else
     echo "Directory "$NEW" already exists."
 fi
 
-# all following commands depend on changing into the new directory 
+# all following commands depend on changing into the new directory.
+# such as creating symlinks and running using vpi 
 cd $NEW
 
 # necessary executables for running the simulations/averaging after simulation
@@ -61,8 +65,7 @@ CONFIG_FILENAME=$NEW/"slices_"${NUM_TIME_SLICES}".sy"
 
 # We should create a new configuration file if one doesn't exist already
 # Simulation needs the following configuration file so it knows what parameters to use
-if [ ! -f "$CONFIG_FILENAME" ]
-then
+if [ ! -f "$CONFIG_FILENAME" ]; then
     # create the '.sy' configuration file
     BOX="BOX 3 34.079914 29.514072 50"
     HE_TYPE="TYPE he bose 6.0596415 64  initial.he.ic"
@@ -88,9 +91,8 @@ then
     # if the random seed file exists, restart the simulation
     # else, the simulations will start from scratch
     # note: you should back up your data files to avoid them being overwritten
-    if [ -f "slices_"${SLURM_ARRAY_TASK_ID}".iseed" ]
-    then
-    echo $RESTART           >> $CONFIG_FILENAME
+    if [ -f "slices_"${SLURM_ARRAY_TASK_ID}".iseed" ]; then
+        echo $RESTART           >> $CONFIG_FILENAME
     fi
 else
     echo "File $CONFIG_FILENAME exists"
