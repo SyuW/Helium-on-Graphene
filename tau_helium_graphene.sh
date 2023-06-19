@@ -4,9 +4,10 @@
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=tau_he_c
-#SBATCH --output=/home/syu7/logs/%u_%x_%j.out
+#SBATCH --output=/home/syu7/logs/tau_he_c/%u_%x_%j.out
 #SBATCH --array=40,80,160,320,640,1280       # Enter the time slices you want to examine here
 # -------------------------------------------
+mkdir -p "/home/syu7/logs/tau_he_c"
 echo "Current working directory: `pwd`"
 echo "Starting run at: `date`"
 # -------------------------------------------
@@ -21,7 +22,7 @@ PROJECT="graphene_helium"
 DATAPATH="$USER/scratch/$PROJECT"
 SOURCEPATH="$USER/PIGS"
 # source path for copying over files necessary for running the simulations
-HELIUM_GRAPHENE="$USER/PIGS/WORK/tasks/helium_graphene_experiment"
+HELIUM_GRAPHENE="$SOURCEPATH/WORK/tasks/helium_graphene_experiment"
 
 # find the optimal timestep for this system: ground state energy per particle
 # versus number of time slices used, denote tau = beta / time_slices as the imaginary time-step
@@ -99,7 +100,8 @@ else
 fi
 
 # start the simulation
-echo "slices_"${NUM_TIME_SLICES}"" | ./vpi
+echo "slices_"$NUM_TIME_SLICES"" | ./vpi > "slices_"$NUM_TIME_SLICES".out"
 
-# plot the output files
-gnuplot -e "dirname='$NEW'" plot_files.p
+# plot the output files using a gnuplot script
+PLOTTING_SCRIPT="$USER/scratch/postprocessing/plot_files.p"
+gnuplot -e "dirname='$NEW'" "$PLOTTING_SCRIPT"

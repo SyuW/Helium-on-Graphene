@@ -1,6 +1,6 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=08-00:00:00
+#SBATCH --time=12-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=restart
@@ -13,7 +13,7 @@ echo "Starting run at: `date`"
 # Purpose of this script is to restart a stopped simulation in the same directory
 
 # Enter the source path here
-CHOICE_DIR="/home/syu7/scratch/graphene_helium/optimal_time_step_beta_0.0625/slices_320"
+CHOICE_DIR="/home/syu7/scratch/graphene_helium/optimal_time_step_beta_0.0625/slices_640"
 echo "The provided directory path is: $CHOICE_DIR"
 
 # check if the provided directory can be restarted:
@@ -25,11 +25,11 @@ CONFIG_FILE=$(find "$CHOICE_DIR" -maxdepth 1 -type f -name "*.sy")
 ENERGIES_FILE=$(find "$CHOICE_DIR" -maxdepth 1 -type f -name "*.en")
 
 # check if these files exist before proceeding
-if [ -z "$RUN_FILE" ] || [ -z "$SEED_FILE" ] || [ -z "$LAST_POS_FILE" ] || [ -z "$CONFIG_FILE" ]; then
+if [ -z "$RUN_FILE" ] || [ -z "$SEED_FILE" ] || [ -z "$LAST_POS_FILE" ] || [ -z "$CONFIG_FILE" ] || [-z "$ENERGIES_FILE"]; then
   echo "Necessary files for simulation restart in provided path was not found"
   exit 1
 else
-  echo ".run, .iseed, .sy, and .last files were found - proceeding"
+  echo ".run, .iseed, .sy, .last, .en files were found - proceeding"
 fi
 
 # check if the last line of the configuration file contains the `RESTART` directive

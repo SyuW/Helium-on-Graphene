@@ -3,7 +3,7 @@
 #SBATCH --time=07-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
-#SBATCH --job-name=ensemble_640
+#SBATCH --job-name=ensemble_160
 #SBATCH --output=/home/syu7/logs/%u_%x_%j.out
 #SBATCH --array=1,2,3,4,5,6,7,8,9,10,11,12       # indices for random seeds to use
 # -------------------------------------------
@@ -15,15 +15,10 @@ echo "Starting run at: `date`"
 # 
 # example usage: sbatch ./run_ensemble.sh "~/scratch/2d_helium"
 #
-# in order to try an ensemble run for a 2d system of Helium-4
-#
-#if [ -z "$1" ]; then
-#  echo "Please provide the path of the simulation run as a command line argument."
-#  exit 1
-#fi
 
 # Enter your source path here
-CHOICE_DIR="/home/syu7/scratch/graphene_helium/optimal_time_step_beta_0.0625/slices_640"
+SLICES=160
+CHOICE_DIR="/home/syu7/scratch/graphene_helium/optimal_time_step_beta_0.0625/slices_"$SLICES""
 echo "The provided directory path is: $CHOICE_DIR"
 
 # check if the provided directory is valid

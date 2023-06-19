@@ -3,10 +3,11 @@
 #SBATCH --time=7-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
-#SBATCH --job-name=tau_he_c
-#SBATCH --output=/home/syu7/logs/%u_%x_%j.out
-#SBATCH --array=0,1,2,3,4,5       # array indices for accessing different projection times
+#SBATCH --job-name=beta_he_c
+#SBATCH --output=/home/syu7/logs/beta_he_c/%u_%x_%j.out
+#SBATCH --array=0,1,2,3,4       # array indices for accessing different projection times
 # -------------------------------------------
+mkdir -p "/home/syu7/logs/beta_he_c"
 echo "Current working directory: `pwd`"
 echo "Starting run at: `date`"
 # -------------------------------------------
@@ -30,8 +31,18 @@ HELIUM_GRAPHENE="$USER/PIGS/WORK/tasks/helium_graphene_experiment"
 
 # use a fixed time step for simulations of varying projection time
 TAU=0.0015625
-BETAS=( 0.0625 0.125 0.25 0.5 1.0 2.0 )
-SLICES_OPTIONS=( 40 80 160 320 640 1280 )
+BETAS=( 0.0625 0.125 0.25 0.5 1.0 )
+SLICES_OPTIONS=( 160 320 640 1280 2560 )
+
+# if the job is not submitted via Slurm, define the SLURM_ARRAY_TASK_ID yourself
+# in order to access the random seed file
+if [ -z $SLURM_ARRAY_TASK_ID ]; then
+  # try a default value of 1
+  SLURM_ARRAY_TASK_ID=1
+  echo "Array task id is not defined. Using the following value : $SLURM_ARRAY_TASK_ID"
+else
+  echo "Array task id already exists: $SLURM_ARRAY_TASK_ID"
+fi
 
 BETA=${BETAS[$SLURM_ARRAY_TASK_ID]}
 SLICES=${SLICES_OPTIONS[$SLURM_ARRAY_TASK_ID]}
@@ -104,5 +115,6 @@ fi
 # start the simulation
 echo "beta_"$BETA"" | ./vpi
 
-# plot the output files
-gnuplot -e "dirname='$NEW'" plot_files.p
+# plot the output files using a gnuplot script
+PLOTTING_SCRIPT="$USER/scratch/postprocessing/plot_files.p"
+gnuplot -e "dirname='$NEW'" "$PLOTTING_SCRIPT"
