@@ -41,7 +41,7 @@ PROJECTPATH="$SOURCEPATH/WORK/experiments/$PROJECT"_experiment
 # ---------------------------------------- #
 
 usage () {
-    echo "./optimal_tau_search.sh <project>"
+    echo "Usage: ./optimal_tau_search.sh <project>"
 }
 
 assert_project () {
@@ -173,8 +173,10 @@ fi
 # newly created directory for running the simulation. This will overwrite the old configuration file
 # if the simulation directory was already created before.
 
+NEW_CONFIG_FILE="$NEW/slices_$NUM_TIME_SLICES.sy"
+
 # ordering of parameters to config_parser: <path to experiment config file> <path to prod config file> <time slices> <projection time>
-config_parser "$PROJECTPATH/$PROJECT.sy" "$NEW/slices_$NUM_TIME_SLICES.sy" "$NUM_TIME_SLICES" "$BETA"
+config_parser "$PROJECTPATH/$PROJECT.sy" "$NEW_CONFIG_FILE" "$NUM_TIME_SLICES" "$BETA"
 
 # all following commands depend on changing into the new directory.
 # such as creating symlinks and running using vpi 
@@ -199,16 +201,16 @@ echo "----------------------------------------------------------------------"
 echo "Running QMC simulation with $NUM_TIME_SLICES time slices"
 echo -e "----------------------------------------------------------------------\n"
 
-if [ "$JOBLESS" = 1 ]; then
-    # 
+TOTAL_BLOCKS=$(grep "PASS" "$NEW_CONFIG_FILE" | cut -d " " -f 2)
+PASSES_PER_BLOCK=$(grep "PASS" "$NEW_CONFIG_FILE" | cut -d " " -f 2)
+echo "Running simulation with $TOTAL_BLOCKS blocks and $PASSES_PER_BLOCK passes per block"
+
+if [ "$JOBLESS" = 1 ]; then 
     echo -e "Script was not submitted through Slurm"
-    $USER/scratch/job_scripts/run_standalone.sh "$NEW"
+    $USER/scratch/job_scripts/run_standalone.sh "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
 else
     echo "Script was submitted through Slurm as a job"
-    TOTAL_BLOCKS=$(grep "PASS" "$CONFIG_FILE" | cut -d " " -f 2)
-    PASSES_PER_BLOCK=$(grep "PASS" "$CONFIG_FILE" | cut -d " " -f 2)
-    echo "Running simulation with $TOTAL_BLOCKS blocks and $PASSES_PER_BLOCK passes per block"
-    sbatch "$USER/scratch/job_scripts/run_standalone.sh" "$NEW"
+    sbatch "$USER/scratch/job_scripts/run_standalone.sh" "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
 fi
 
 # plot the output files using a gnuplot script

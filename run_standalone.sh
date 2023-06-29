@@ -45,7 +45,7 @@ if [[ -z $SIMULATION_DIR ]]; then
 fi
 
 echo -e "Attempting to run simulation inside directory $SIMULATION_DIR\n"
-echo "Using $TOTAL_BLOCKS in total with $PASSES_PER_BLOCK passes per block"
+echo "Using $TOTAL_BLOCKS blocks in total with $PASSES_PER_BLOCK passes per block"
 
 NAME=$( basename "$SIMULATION_DIR" )
 CHECKPOINT_FILE="$SIMULATION_DIR/$NAME.checkpoint"
@@ -103,6 +103,7 @@ if test -e "$CHECKPOINT_FILE"; then
     
 else
     # checkpoint was not found, start a new simulation
+    echo "Checkpoint file not found, starting a new simulation"
     echo "checkpoint file for simulation $NAME" > "$CHECKPOINT_FILE"
     cd "$SIMULATION_DIR" || exit 1
     echo "$NAME" | ./vpi > "$SIMULATION_DIR/$NAME.out"
