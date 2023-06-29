@@ -46,7 +46,7 @@ assert_project () {
     local ALLOWED_PROJECTS=( "2d_helium" "graphene_helium" )
 
     # check if the provided project is valid
-    if [[ ! " ${ALLOWED_PROJECTS[*]} " =~ " ${PROJECT} " ]]; then
+    if [[ ! " ${ALLOWED_PROJECTS[*]} " =~ ${PROJECT} ]]; then
         echo "Given project '$PROJECT' doesn't exist, aborting"
         exit 1
     else
@@ -77,7 +77,7 @@ config_parser () {
     # you want to use 
 
     # overwrite the old production file to be empty
-    truncate -s 0 $PRODUCTION_CONFIG_FILE
+    truncate -s 0 "$PRODUCTION_CONFIG_FILE"
 
     # read the experiment's reference configuration file line-by-line
     while IFS="" read -r LINE || [ -n "$LINE" ]; do
@@ -135,7 +135,7 @@ assert_project $PROJECT
 
 # check whether the script was submitted as part of a slurm job
 DEFAULT_VAL=40
-if [ -z $SLURM_ARRAY_TASK_ID ]; then
+if [ -z "$SLURM_ARRAY_TASK_ID" ]; then
     echo -e "Array task id is not defined. Using the following value : $DEFAULT_VAL\n"
     SLURM_ARRAY_TASK_ID=$DEFAULT_VAL
     JOBLESS=1
@@ -151,18 +151,18 @@ NUM_TIME_SLICES=$SLURM_ARRAY_TASK_ID
 BETA=0.03125
 
 # base directory for doing the optimal timestep search procedure
-TIMESTEP_DIR="optimal_time_step_beta_"${BETA}""
+TIMESTEP_DIR="optimal_time_step_beta_$BETA"
 
 # sub-directory corresponding to number of time slices used in simulations
 # contains executable for running simulation and any other files e.g. other executables and any data files
-NEW="$DATAPATH/$TIMESTEP_DIR/slices_"${NUM_TIME_SLICES}""
+NEW="$DATAPATH/$TIMESTEP_DIR/slices_$NUM_TIME_SLICES"
 
 if [ ! -d "$NEW" ]
 then
-    echo -e "Directory "$NEW" doesn't exist. Making new directory.\n"
-    mkdir -p $NEW
+    echo -e "Directory $NEW doesn't exist. Making new directory.\n"
+    mkdir -p "$NEW"
 else
-    echo -e "Directory "$NEW" already exists.\n"
+    echo -e "Directory $NEW already exists.\n"
 fi
 
 # read the experiment configuration file in /home and then write a new configuration file in the 
@@ -170,11 +170,11 @@ fi
 # if the simulation directory was already created before.
 
 # ordering of parameters to config_parser: <path to experiment config file> <path to prod config file> <time slices> <projection time>
-config_parser "$PROJECTPATH/$PROJECT.sy" "$NEW/slices_"$NUM_TIME_SLICES".sy" $NUM_TIME_SLICES $BETA
+config_parser "$PROJECTPATH/$PROJECT.sy" "$NEW/slices_$NUM_TIME_SLICES.sy" "$NUM_TIME_SLICES" "$BETA"
 
 # all following commands depend on changing into the new directory.
 # such as creating symlinks and running using vpi 
-cd $NEW
+cd "$NEW" || exit 1
 
 echo "Creating necessary symbolic links"
 # necessary executables for running the simulations/averaging after simulation
@@ -183,7 +183,7 @@ ln -s "$SOURCEPATH/source/vpi" vpi
 
 # .ic files with the initial positions of particle species
 for type in "${SPECIES[@]}"; do
-    ln -s "$PROJECTPATH/initial."$type".ic" initial."$type".ic
+    ln -s "$PROJECTPATH/initial.$type.ic" initial.$type.ic
 done
 
 echo -e "Creation of symbolic links has finished\n"
@@ -192,17 +192,15 @@ echo -e "Creation of symbolic links has finished\n"
 # for running the simulation and performing any necessary restarts
 
 echo "----------------------------------------------------------------------"
-echo "Running QMC simulation with "$NUM_TIME_SLICES" time slices"
+echo "Running QMC simulation with $NUM_TIME_SLICES time slices"
 echo -e "----------------------------------------------------------------------\n"
 
 if [ "$JOBLESS" = 1 ]; then
     # 
-    echo -e "Script was not submitted through Slurm, now spawning subprocess to run simulation in background"
-    cd "$USER/scratch/job_scripts"
-    nohup ./run_standalone.sh "$NEW" > "$NEW/slices_"$NUM_TIME_SLICES".sub" &
+    echo -e "Script was not submitted through Slurm"
+    $USER/scratch/job_scripts/run_standalone.sh "$NEW"
 else
-    echo "Job"
-    exit 1
+    echo ""
     sbatch "$USER/scratch/job_scripts/run_standalone.sh" "$NEW"
 fi
 
