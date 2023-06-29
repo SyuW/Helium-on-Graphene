@@ -1,10 +1,10 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=0-00:01:00
+#SBATCH --time=7-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=standalone
-#SBATCH --output=/home/syu7/logs/standalone/%x_%j.out
+#SBATCH --output=/home/syu7/logs/test/%x_run_%a_id_%j.out
 #SBATCH --array=1-10%1       # syntax is 1-x%1 where 'x' is number of times the simulation will restart
 # -------------------------------------------
 
@@ -44,17 +44,21 @@ if [[ -z $SIMULATION_DIR ]]; then
     usage
 fi
 
-echo -e "Attempting to run simulation inside directory $SIMULATION_DIR\n"
-echo "Using $TOTAL_BLOCKS blocks in total with $PASSES_PER_BLOCK passes per block"
+# access functions
+source "$USER/scratch/job_scripts/functions.sh"
 
 NAME=$( basename "$SIMULATION_DIR" )
 CHECKPOINT_FILE="$SIMULATION_DIR/$NAME.checkpoint"
+
+echo "Simulation beginning again"
 
 if test -e "$CHECKPOINT_FILE"; then
     # if there is a checkpoint file, restart
     echo -e "Checkpoint file detected, attempting restart"
 
     mkdir -p "$SIMULATION_DIR"/backups # make a backup directory if not already there
+    COMBINED_FILE="$SIMULATION_DIR/backups/$NAME.combined"
+    touch "$COMBINED_FILE"
 
     # files that the simulation will produce assuming it ran correctly before 
     RUN_FILE=$(find "$SIMULATION_DIR" -maxdepth 1 -type f -name '*.run')
@@ -75,7 +79,10 @@ if test -e "$CHECKPOINT_FILE"; then
     BACKUPS_COUNT=$(find "$SIMULATION_DIR/backups/" -maxdepth 1 -type f -name 'backup*' | wc -l)
     CURRENT_BACKUP_NO=$((BACKUPS_COUNT+1))
 
-    echo "$CURRENT_BACKUP_NO previous backups found" 
+    echo "$CURRENT_BACKUP_NO previous backups found"
+
+    # concatenate energy file to the combined file -- this is what's used for averaging after all simulations
+    combine_files "$COMBINED_FILE" "$ENERGIES_FILE" "$COMBINED_FILE"
 
     # move the energies file into the backups folder so that it doesn't get overwritten
     ENERGIES_FILE_NAME=$(basename "$ENERGIES_FILE")
@@ -98,14 +105,14 @@ if test -e "$CHECKPOINT_FILE"; then
     grep -qxF 'RESTART' "$CONFIG_FILE" || echo 'RESTART' >> "$CONFIG_FILE" # then add the RESTART directive if not already present
 
     # restart the simulation
-    cd "$SIMULATION_DIR" || exit 1
+    cd "$SIMULATION_DIR" || { echo "cannot change to simulation directory"; exit 1; } 
     echo "$NAME" | ./vpi > "$SIMULATION_DIR/$NAME.out"
     
 else
     # checkpoint was not found, start a new simulation
     echo "Checkpoint file not found, starting a new simulation"
     echo "checkpoint file for simulation $NAME" > "$CHECKPOINT_FILE"
-    cd "$SIMULATION_DIR" || exit 1
+    cd "$SIMULATION_DIR" || { echo "cannot change to simulation directory"; exit 1; }
     echo "$NAME" | ./vpi > "$SIMULATION_DIR/$NAME.out"
 fi
 
@@ -113,9 +120,12 @@ fi
 # postprocess
 
 STATUS=$?
-    if ! (exit $STATUS); then
-        echo "Simulation did not complete"
-    else
-        echo "Simulation completed successfully"
-        rm "$CHECKPOINT_FILE"
-    fi
+if ! (exit $STATUS); then
+    echo -e "Simulation did not complete\n"
+else
+    echo -e "Simulation completed successfully\n"
+
+    rm "$CHECKPOINT_FILE"
+    COMPLETE_FILE="$SIMULATION_DIR/$NAME.complete"
+    echo "$NAME simulation complete" > "$COMPLETE_FILE"
+fi
