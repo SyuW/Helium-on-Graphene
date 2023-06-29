@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# combine both files - excluding the first line mind you (which is the header)
+# and uniformize the line numbers
 combine_files() {
     FILE1=$1
     FILE2=$2

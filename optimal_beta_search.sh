@@ -52,7 +52,7 @@ TAU=$2
 assert_project "$PROJECT"
 
 # check that the provided time step tau is of correct type (float)
-is_float "$TAU" || { echo "Time step has to be a float" ; exit 1; }
+is_float "$TAU" || { echo "Time step has to be a float" ; usage ; exit 1; }
 
 DATAPATH="$USER/scratch/$PROJECT"
 SOURCEPATH="$USER/PIGS"
