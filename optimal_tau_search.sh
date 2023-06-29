@@ -8,8 +8,8 @@
 #SBATCH --array=40,80,160,320,640,1280       # Enter the time slices you want to examine here
 # -------------------------------------------
 mkdir -p "/home/syu7/logs/optimal_tau_search"
-echo "Current working directory: `pwd`"
-echo "Starting run at: `date`"
+echo "Current working directory: $(pwd)"
+echo "Starting run at: $(date)"
 
 USER="/home/syu7"
 
@@ -19,7 +19,7 @@ PROJECT=$1
 DATAPATH="$USER/scratch/$PROJECT"
 SOURCEPATH="$USER/PIGS"
 # source path for copying over files necessary for running the simulations
-PROJECTPATH="$SOURCEPATH/WORK/experiments/"$PROJECT"_experiment"
+PROJECTPATH="$SOURCEPATH/WORK/experiments/$PROJECT"_experiment
 
 # ------------------------------------------------------------------------------------------------------------------------   #
 #   PURPOSE: Search for the optimal number of time slices at fixed projection time, beyond which statistical errors are negligible                    #
@@ -39,6 +39,10 @@ PROJECTPATH="$SOURCEPATH/WORK/experiments/"$PROJECT"_experiment"
 # ---------------------------------------- #
 #           BEGIN FUNCTIONS                #
 # ---------------------------------------- #
+
+usage () {
+    echo "./optimal_tau_search.sh <project>"
+}
 
 assert_project () {
 
@@ -131,7 +135,7 @@ config_parser () {
 # ------------------------------- #
 
 # check that the provided project string is valid
-assert_project $PROJECT
+assert_project "$PROJECT"
 
 # check whether the script was submitted as part of a slurm job
 DEFAULT_VAL=40
@@ -200,7 +204,10 @@ if [ "$JOBLESS" = 1 ]; then
     echo -e "Script was not submitted through Slurm"
     $USER/scratch/job_scripts/run_standalone.sh "$NEW"
 else
-    echo ""
+    echo "Script was submitted through Slurm as a job"
+    TOTAL_BLOCKS=$(grep "PASS" "$CONFIG_FILE" | cut -d " " -f 2)
+    PASSES_PER_BLOCK=$(grep "PASS" "$CONFIG_FILE" | cut -d " " -f 2)
+    echo "Running simulation with $TOTAL_BLOCKS blocks and $PASSES_PER_BLOCK passes per block"
     sbatch "$USER/scratch/job_scripts/run_standalone.sh" "$NEW"
 fi
 

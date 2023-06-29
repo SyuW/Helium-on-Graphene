@@ -94,7 +94,6 @@ if test -e "$CHECKPOINT_FILE"; then
 
     sed -i "s/$(grep "PASS" "$CONFIG_FILE")/PASS $BLOCKS_REMAINING $PASSES_PER_BLOCK/" "$CONFIG_FILE"
 
-
     sed -i '/^\s*$/d' "$CONFIG_FILE" # first, remove any empty lines in the config file
     grep -qxF 'RESTART' "$CONFIG_FILE" || echo 'RESTART' >> "$CONFIG_FILE" # then add the RESTART directive if not already present
 
