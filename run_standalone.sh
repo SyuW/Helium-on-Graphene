@@ -6,7 +6,7 @@
 #SBATCH --job-name=standalone
 #SBATCH --output=/home/syu7/logs/test/%x_run_%a_id_%j.out
 #SBATCH --array=1-10%1       # syntax is 1-x%1 where 'x' is number of times the simulation will restart
-# -------------------------------------------
+# --------------------------------------------
 
 # create the directory for holding the logs
 USER="/home/syu7"

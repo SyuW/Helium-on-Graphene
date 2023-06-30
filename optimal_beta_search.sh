@@ -4,8 +4,8 @@
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=optimal_beta
-#SBATCH --output=/home/syu7/logs/test/%x_slices_%t_%j.out
-#SBATCH --array=0,1,2,3,4      # Array indices for accessing different projection times
+#SBATCH --output=/home/syu7/logs/test/beta_index_%x_%t_%j.out
+#SBATCH --array=5,6     # Array indices for accessing different projection times
 # -------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------------------ #
@@ -63,7 +63,7 @@ PROJECTPATH="$SOURCEPATH/WORK/experiments/$PROJECT"_experiment
 DEFAULT_INDEX=0
 if [ -z "$SLURM_ARRAY_TASK_ID" ]; then
     echo -e "Array task id is not defined. Using the following value: $DEFAULT_INDEX\n"
-    SLURM_ARRAY_TASK_ID=$DEFAULT_VAL
+    SLURM_ARRAY_TASK_ID=$DEFAULT_INDEX
     JOBLESS=1
 else
     echo -e "Array task id already exists: $SLURM_ARRAY_TASK_ID\n"
@@ -71,7 +71,7 @@ else
 fi
 
 # use a fixed projection time for simulations of varying time-step
-BETAS=( 0.0625 0.125 0.25 0.5 1.0 )
+BETAS=( 0.0625 0.125 0.25 0.5 1.0 2.0 4.0 )
 SLICES_OPTIONS=()
 for beta in "${BETAS[@]}"; do
     result=$(python -c "print(int($beta / $TAU))")
@@ -81,8 +81,8 @@ done
 echo "Using the time slices: ${SLICES_OPTIONS[*]}"
 
 # use the index coming from the array job to select projection time/number of slices
-BETA=${BETAS[$DEFAULT_INDEX]}
-NUM_TIME_SLICES=${SLICES_OPTIONS[$DEFAULT_INDEX]}
+BETA=${BETAS[$SLURM_ARRAY_TASK_ID]}
+NUM_TIME_SLICES=${SLICES_OPTIONS[$SLURM_ARRAY_TASK_ID]}
 
 # base directory for doing the optimal timestep search procedure
 BETA_DIR="optimal_beta_tau_$TAU"
