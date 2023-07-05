@@ -8,11 +8,6 @@
 #SBATCH --array=1,2,3,4,5,6,7,8,9,10,11,12       # indices for random seeds to use
 # -------------------------------------------
 
-# script needs directory path of simulation run as a CLI arg to be restarted as an ensemble
-# 
-# example usage: sbatch ./run_ensemble.sh "~/scratch/2d_helium"
-#
-
 # ------------------------------------------------------------------------------------------------------------------------ #
 #   PURPOSE: Run an ensemble starting where a standalone simulation ended off for production                               #
 # ------------------------------------------------------------------------------------------------------------------------ #
@@ -23,31 +18,21 @@
 #   and reduce statistical errors during data analysis.                                                                    #
 # ------------------------------------------------------------------------------------------------------------------------ #
 
-check_sim_path() {
-  local DIR=$1
-  local SEED_FILE
-  local LAST_POS_FILE
-  local CONFIG_FILE
-  local ENERGIES_FILE
+module load "StdEnv/2020"
+module load "scipy-stack"
+module load "gnuplot"
 
-  SEED_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.iseed')
-  LAST_POS_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.last')
-  CONFIG_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.sy')
-  ENERGIES_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.en')
 
-  if [[ -z "$SEED_FILE" || -z "$LAST_POS_FILE" || -z "$CONFIG_FILE" || -z "$ENERGIES_FILE" ]]; then
-    echo -e "Missing required files\n"
-    exit 1
-  else
-    echo -e ".run, .iseed, .sy, .last, .en files were found - proceeding\n"
-  fi
-}
- 
+USER="/home/syu7"
+source "$USER/scratch/job_scripts/functions.sh"
+
 SOURCEPATH=$1
+
+check_argument "$SOURCEPATH"
+
 echo "The provided source path for ensembling is: $SOURCEPATH"
 
-# check if the chosen path has the correct files needed to run/restart sim
-check_sim_path "$SOURCEPATH"
+check_sim_path "$SOURCEPATH" # check if the chosen path has the correct files needed to run/restart sim
 
 # get the last directory in the provided path
 # e.g. if the path is '~/scratch/graphene_helium/optimal_beta_tau_0.0015625/beta_1.0', then name is 'beta_1.0'
@@ -85,7 +70,6 @@ mkdir -p "$NEW"
 find -L "$SOURCEPATH" -maxdepth 1 -type f -not -path '*.iseed' -exec cp {} "$NEW" \;
 
 # now, we have to replace the random seed file
-USER="/home/syu7"
 cp "$USER/scratch/random_seeds/seed$SEED_NUMBER.iseed" "$NEW"
 mv "$NEW/seed$SEED_NUMBER.iseed" "$NEW/$NAME.iseed"
 
@@ -99,5 +83,12 @@ grep -qxF 'RESTART' "$CONFIG_FILE" || echo 'RESTART' >> "$CONFIG_FILE"
 cd "$NEW" || exit 1
 echo "$NAME" | ./vpi > "$NEW/$NAME.out"
 
-# plot the output files
-gnuplot -e "dirname='$NEW'" "$USER/scratch/postprocessing/plot_files.p"
+STATUS=$?
+if ! (exit $STATUS); then
+    echo "Simulation did not complete"
+    echo -e "Postprocessing aborted\n"
+else
+    echo -e "Simulation completed successfully\n"
+    # plot the output files
+    gnuplot -e "dirname='$NEW'" "$USER/scratch/postprocessing/plot_files.p"
+fi

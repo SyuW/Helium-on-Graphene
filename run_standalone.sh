@@ -4,13 +4,9 @@
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=standalone
-#SBATCH --output=/home/syu7/logs/test/%x_run_%a_id_%j.out
+#SBATCH --output=/home/syu7/logs/standalone/%x_run_%a_id_%j.out
 #SBATCH --array=1-10%1       # syntax is 1-x%1 where 'x' is number of times the simulation will restart
 # --------------------------------------------
-
-# create the directory for holding the logs
-USER="/home/syu7"
-mkdir -p "$USER/logs/standalone"
 
 # Purpose of this script is to run a standalone simulation
 
@@ -30,8 +26,12 @@ usage() {
 # }
 
 # ---------------------------------------- #
-#           END FUNCTIONS                #
+#           END FUNCTIONS                  #
 # ---------------------------------------- #
+
+# create the directory for holding the logs
+USER="/home/syu7"
+mkdir -p "$USER/logs/standalone"
 
 # assign the command-line arguments to more meaningful variables
 SIMULATION_DIR=$1
@@ -138,6 +138,7 @@ else
     combine_files "$COMBINED_FILE" "$ENERGIES_FILE" "$COMBINED_FILE"
     
     rm "$CHECKPOINT_FILE"
-    mv 
+    gnuplot -e "dirname=$SIMULATION_DIR" "$USER/scratch/postprocessing/plot_files.p"
+
     echo "$NAME simulation complete" > "$COMPLETE_FILE"
 fi

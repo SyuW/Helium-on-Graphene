@@ -17,6 +17,7 @@ combine_files() {
     rm "temp.txt"
 }
 
+# check whether the provided project string is valid (pertains to an existing project)
 assert_project () {
 
     local PROJECT=$1
@@ -31,6 +32,36 @@ assert_project () {
 
     echo "Given project '$PROJECT' doesn't exist, aborting"
     exit 1
+}
+
+# check whether the provided path contains the necessary files for restarting
+check_sim_path() {
+  local DIR=$1
+  local SEED_FILE
+  local LAST_POS_FILE
+  local CONFIG_FILE
+  local ENERGIES_FILE
+
+  SEED_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.iseed')
+  LAST_POS_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.last')
+  CONFIG_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.sy')
+  ENERGIES_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.en')
+
+  if [[ -z "$SEED_FILE" || -z "$LAST_POS_FILE" || -z "$CONFIG_FILE" || -z "$ENERGIES_FILE" ]]; then
+    echo -e "Missing required files\n"
+    exit 1
+  else
+    echo -e ".run, .iseed, .sy, .last, .en files were found - proceeding\n"
+  fi
+}
+
+# check that the provided arg is not empty
+check_argument() {
+    arg="$1"
+    if [[ -z "$arg" ]]; then
+      echo "Error: Empty argument found!"
+      exit 1
+    fi
 }
 
 # ordering of parameters to config_parser: <path to experiment config file> <path to prod config file> <time slices> <projection time>

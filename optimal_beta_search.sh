@@ -4,8 +4,8 @@
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=optimal_beta
-#SBATCH --output=/home/syu7/logs/test/beta_index_%x_%t_%j.out
-#SBATCH --array=5,6     # Array indices for accessing different projection times
+#SBATCH --output=/home/syu7/logs/optimal_beta_search/%x_index_%t_id_%j.out
+#SBATCH --array=0,1,2,3,4,5,6     # Array indices for accessing different projection times
 # -------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------------------ #
@@ -24,7 +24,7 @@
 # ---------------------------------------- #
 
 usage () {
-    echo "Usage: ./optimal_beta_search.sh <project>"
+    echo "Usage: ./optimal_beta_search.sh <project> <time-step>"
 }
 
 # -------------------------- #
@@ -35,11 +35,11 @@ usage () {
 #    MAIN BODY OF SCRIPT BEGINS   #
 # ------------------------------- #
 
-mkdir -p "/home/syu7/logs/optimal_tau_search"
+USER="/home/syu7"
+
+mkdir -p "$USER/logs/optimal_beta_search"
 echo "Current working directory: $(pwd)"
 echo -e "Starting run at: $(date)\n"
-
-USER="/home/syu7"
 
 # get functions
 source "$USER/scratch/job_scripts/functions.sh"
@@ -47,6 +47,9 @@ source "$USER/scratch/job_scripts/functions.sh"
 # use the first command-line argument as the project
 PROJECT=$1
 TAU=$2
+
+check_argument "$PROJECT"
+check_argument "$TAU"
 
 # check that the provided project string is valid
 assert_project "$PROJECT"
@@ -145,10 +148,6 @@ else
     echo -e "Attempting to run simulation inside directory $NEW"
     sbatch "$USER/scratch/job_scripts/run_standalone.sh" "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
 fi
-
-# plot the output files using a gnuplot script
-# PLOTTING_SCRIPT="$USER/scratch/postprocessing/plot_files.p"
-# gnuplot -e "dirname='$NEW'" "$PLOTTING_SCRIPT"
 
 # ------------------------------- #
 #    MAIN BODY OF SCRIPT ENDS     #
