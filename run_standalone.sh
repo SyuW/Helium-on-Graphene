@@ -1,6 +1,6 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=7-00:00:00
+#SBATCH --time=28-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=standalone
@@ -138,7 +138,7 @@ else
     combine_files "$COMBINED_FILE" "$ENERGIES_FILE" "$COMBINED_FILE"
     
     rm "$CHECKPOINT_FILE"
-    gnuplot -e "dirname=$SIMULATION_DIR" "$USER/scratch/postprocessing/plot_files.p"
+    gnuplot -e "dirname='$SIMULATION_DIR'" "$USER/scratch/postprocessing/plot_files.p"
 
     echo "$NAME simulation complete" > "$COMPLETE_FILE"
 fi

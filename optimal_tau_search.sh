@@ -5,7 +5,7 @@
 #SBATCH --mem=500M
 #SBATCH --job-name=optimal_tau
 #SBATCH --output=/home/syu7/logs/optimal_tau_search/%x_slices_%t_id_%j.out
-#SBATCH --array=640,1280      # Enter the time slices you want to examine here
+#SBATCH --array=40,80,160,320,640      # Enter the time slices you want to examine here
 # -------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------------------   #
