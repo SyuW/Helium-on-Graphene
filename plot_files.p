@@ -102,6 +102,9 @@ do for [fn in system("ls ".dirname)] {
         unset output
     }
 
+    # plot the structure factor
+    
+
 }
 
 # now plot in xy-plane the initial positions of the Helium and Carbon atoms
