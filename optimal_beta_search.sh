@@ -25,6 +25,7 @@
 
 usage () {
     echo "Usage: ./optimal_beta_search.sh <project> <time-step>"
+    exit 1
 }
 
 # -------------------------- #
@@ -48,11 +49,11 @@ source "$USER/scratch/job_scripts/functions.sh"
 PROJECT=$1
 TAU=$2
 
-check_argument "$PROJECT"
-check_argument "$TAU"
+check_argument "$PROJECT" || usage
+check_argument "$TAU" || usage
 
 # check that the provided project string is valid
-assert_project "$PROJECT"
+assert_project "$PROJECT" || exit 1;
 
 # check that the provided time step tau is of correct type (float)
 is_float "$TAU" || { echo "Time step has to be a float" ; usage ; exit 1; }
@@ -88,7 +89,7 @@ BETA=${BETAS[$SLURM_ARRAY_TASK_ID]}
 NUM_TIME_SLICES=${SLICES_OPTIONS[$SLURM_ARRAY_TASK_ID]}
 
 # base directory for doing the optimal timestep search procedure
-BETA_DIR="optimal_beta_tau_$TAU"
+BETA_DIR="fixed_optimal_beta_tau_$TAU"
 
 # sub-directory corresponding to number of time slices used in simulations
 # contains executable for running simulation and any other files e.g. other executables and any data files
@@ -140,13 +141,11 @@ echo "Running simulation with $TOTAL_BLOCKS blocks and $PASSES_PER_BLOCK passes 
 
 if [ "$JOBLESS" = 1 ]; then 
     echo -e "Script was not submitted through Slurm"
-    $USER/scratch/job_scripts/run_standalone.sh "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
-    $USER/scratch/job_scripts/run_standalone.sh "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
-    $USER/scratch/job_scripts/run_standalone.sh "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
+    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
 else
     echo "Script was submitted through Slurm as a job"
     echo -e "Attempting to run simulation inside directory $NEW"
-    sbatch "$USER/scratch/job_scripts/run_standalone.sh" "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
+    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
 fi
 
 # ------------------------------- #

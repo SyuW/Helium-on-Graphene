@@ -31,11 +31,11 @@ assert_project () {
     done
 
     echo "Given project '$PROJECT' doesn't exist, aborting"
-    exit 1
+    return 1
 }
 
 # check whether the provided path contains the necessary files for restarting
-check_sim_path() {
+check_sim_restart() {
   local DIR=$1
   local SEED_FILE
   local LAST_POS_FILE
@@ -47,24 +47,59 @@ check_sim_path() {
   CONFIG_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.sy')
   ENERGIES_FILE=$(find "$DIR" -maxdepth 1 -type f -name '*.en')
 
+  echo "# --------------------------------------------------"
+  echo "Files found:"
+  echo "$SEED_FILE"
+  echo "$LAST_POS_FILE"
+  echo "$CONFIG_FILE"
+  echo "$ENERGIES_FILE"
+
   if [[ -z "$SEED_FILE" || -z "$LAST_POS_FILE" || -z "$CONFIG_FILE" || -z "$ENERGIES_FILE" ]]; then
-    echo -e "Missing required files\n"
-    exit 1
+    echo -e "Missing required files"
+    return 1
   else
-    echo -e ".run, .iseed, .sy, .last, .en files were found - proceeding\n"
+    echo -e ".run, .iseed, .sy, .last, .en files were found - proceeding"
   fi
+  echo "# --------------------------------------------------"
+}
+
+# check whether the provided path contains necessary files for starting anew
+check_sim_begin() {
+  local DIR=$1
+  local CONFIG_FILE
+  local EXECUTABLE
+  local INITIAL_POS_FILE
+
+  CONFIG_FILE=$(find "$DIR" -maxdepth 1 -name '*.sy')
+  EXECUTABLE=$(find "$DIR" -maxdepth 1 -name '*vpi')
+  INITIAL_POS_FILE=$(find "$DIR" -maxdepth 1 -name "*.ic")
+
+  echo "# --------------------------------------------------"
+  echo "Files found:"
+  echo "$CONFIG_FILE"
+  echo "$EXECUTABLE"
+  echo "$INITIAL_POS_FILE"
+
+  if [[ -z "$CONFIG_FILE" || -z "$EXECUTABLE" || -z "$INITIAL_POS_FILE" ]]; then
+    echo -e "Missing required files"
+    # exit 1
+  else
+    echo -e ".sy, .ic, vpi files were found - proceeding"
+  fi
+  echo "# ---------------------------------------------------"
 }
 
 # check that the provided arg is not empty
 check_argument() {
     arg="$1"
     if [[ -z "$arg" ]]; then
-      echo "Error: Empty argument found!"
-      exit 1
+      echo "Error: Empty mandatory argument found! Please check how to use the script"
+      return 1
     fi
 }
 
-# ordering of parameters to config_parser: <path to experiment config file> <path to prod config file> <time slices> <projection time>
+# ordering of parameters to config_parser: 
+# <path to experiment config file> <path to prod config file> <time slices> <projection time>
 config_parser () {
 
     # parameters

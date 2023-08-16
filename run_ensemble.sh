@@ -1,11 +1,11 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=07-00:00:00
+#SBATCH --time=28-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=ensemble
 #SBATCH --output=/home/syu7/logs/ensemble/seed_%x_%j.out
-#SBATCH --array=1,2,3,4,5,6,7,8,9,10,11,12       # indices for random seeds to use
+#SBATCH --array=1-20       # enumerating random seeds to use
 # -------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------------------ #
@@ -23,20 +23,33 @@ module load "scipy-stack"
 module load "gnuplot"
 
 
+usage () {
+  echo "Usage: ./run_ensemble <directory-to-be-ensembled> <number-of-blocks> <passes-per-block>"
+  exit 0
+}
+
 USER="/home/syu7"
 source "$USER/scratch/job_scripts/functions.sh"
 
 SOURCEPATH=$1
+NUMBER_OF_BLOCKS=$2
+PASSES_PER_BLOCK=$3
 
-check_argument "$SOURCEPATH"
+check_argument "$SOURCEPATH" || usage
+check_argument "$NUMBER_OF_BLOCKS" || usage
+check_argument "$PASSES_PER_BLOCK" || usage
 
 echo "The provided source path for ensembling is: $SOURCEPATH"
 
-check_sim_path "$SOURCEPATH" # check if the chosen path has the correct files needed to run/restart sim
+# check if the chosen path has the correct files needed to run/restart sim
+check_sim_restart "$SOURCEPATH" || usage
 
 # get the last directory in the provided path
 # e.g. if the path is '~/scratch/graphene_helium/optimal_beta_tau_0.0015625/beta_1.0', then name is 'beta_1.0'
 NAME=$(basename "$SOURCEPATH")
+
+# trim any trailing backslashes
+SOURCEPATH=$(echo "$SOURCEPATH" | sed 's:/*$::')
 
 # if the job is not submitted via Slurm, define the SLURM_ARRAY_TASK_ID yourself
 # in order to access the random seed file
@@ -70,18 +83,22 @@ mkdir -p "$NEW"
 find -L "$SOURCEPATH" -maxdepth 1 -type f -not -path '*.iseed' -exec cp {} "$NEW" \;
 
 # now, we have to replace the random seed file
-cp "$USER/scratch/random_seeds/seed$SEED_NUMBER.iseed" "$NEW"
+cp "$USER/scratch/random_seeds/generated_seeds/seed$SEED_NUMBER.iseed" "$NEW"
+# changing the name of the random seed file to be the same as the parent directory is necessary
 mv "$NEW/seed$SEED_NUMBER.iseed" "$NEW/$NAME.iseed"
 
 CONFIG_FILE="$NEW/$NAME.sy"
 # first, remove any empty lines in the config file
 sed -i '/^\s*$/d' "$CONFIG_FILE"
+# change the number of blocks and passes
+sed -i "s/$(grep "PASS" "$CONFIG_FILE")/PASS $PASSES_PER_BLOCK $NUMBER_OF_BLOCKS/" "$CONFIG_FILE"
 # then add the RESTART directive if not already present
 grep -qxF 'RESTART' "$CONFIG_FILE" || echo 'RESTART' >> "$CONFIG_FILE"
 
 # start the simulation
 cd "$NEW" || exit 1
-echo "$NAME" | ./vpi > "$NEW/$NAME.out"
+DIR=$(pwd)
+echo "$NAME" | ./vpi > "$DIR/$NAME.out"
 
 STATUS=$?
 if ! (exit $STATUS); then

@@ -5,30 +5,31 @@
 #SBATCH --mem=500M
 #SBATCH --job-name=optimal_tau
 #SBATCH --output=/home/syu7/logs/optimal_tau_search/%x_slices_%t_id_%j.out
-#SBATCH --array=40,80,160,320,640      # Enter the time slices you want to examine here
+#SBATCH --array=20,40,80,160,320,640      # Enter the time slices you want to examine here
 # -------------------------------------------
 
-# ------------------------------------------------------------------------------------------------------------------------   #
-#   PURPOSE: Search for the optimal number of time slices at fixed projection time, beyond which statistical errors are negligible                    #
-# ------------------------------------------------------------------------------------------------------------------------   #
-#   Find the optimal timestep for the chosen system: ground state energy per particle                  #
-#   versus number of time slices used, denote tau = beta / time_slices as the imaginary time-step                            #
-#   the average total energy is then calculated as (1/(n-n_0)) * sum_{i > n_0}(E_i)                                          #
-#   where n_0 is the number of steps for the system to equilibrate, i.e. become uncorrelated wrt initial config              #
-#   with datapoints representing average energies collected for different timesteps try to do a quartic fit: a + b*tau*x^4   #
-#   
-#   This procedure is performed using two scripts:
-#     - optimal_tau_search.sh: responsible for creating all the necessary files/directories for running the simulations 
-#                               - formulated as an array job 
-#     - run_standalone.sh: responsible for running the simulations and restarting
-# ------------------------------------------------------------------------------------------------------------------------ #
+# -------------------------------------------------------------------------------------------------------------------------------- #
+#   PURPOSE: Search for the optimal number of time slices at fixed projection time, beyond which statistical errors are negligible #
+# -------------------------------------------------------------------------------------------------------------------------------- #
+#   Find the optimal timestep for the chosen system: ground state energy per particle                                              #
+#   versus number of time slices used, denote tau = beta / time_slices as the imaginary time-step                                  #
+#   the average total energy is then calculated as (1/(n-n_0)) * sum_{i > n_0}(E_i)                                                #
+#   where n_0 is the number of steps for the system to equilibrate, i.e. become uncorrelated wrt initial config                    #
+#   with datapoints representing average energies collected for different timesteps try to do a quartic fit: a + b*tau*x^4         #
+#                                                                                                                                  #
+#   This procedure is performed using two scripts:                                                                                 #
+#     - optimal_tau_search.sh: responsible for creating all the necessary files/directories for running the simulations            #
+#                               - formulated as an array job                                                                       #
+#     - run_standalone.sh: responsible for running the simulations and restarting                                                  #
+# -------------------------------------------------------------------------------------------------------------------------------- #
 
 # ---------------------------------------- #
 #           BEGIN FUNCTIONS                #
 # ---------------------------------------- #
 
 usage () {
-    echo "Usage: ./optimal_tau_search.sh <project>"
+    echo "Usage: ./optimal_tau_search.sh <project> <projection-time>"
+    exit 0
 }
 
 # -------------------------- #
@@ -40,8 +41,6 @@ usage () {
 # ------------------------------- #
 
 mkdir -p "/home/syu7/logs/optimal_tau_search"
-echo "Current working directory: $(pwd)"
-echo "Starting run at: $(date)"
 
 USER="/home/syu7"
 
@@ -54,11 +53,11 @@ BETA=$2
 # use a fixed projection time for simulations of varying time-step
 # BETA=0.0625
 
-check_argument "$PROJECT"
-check_argument "$BETA"
+check_argument "$PROJECT" || usage
+check_argument "$BETA" || usage
 
 # check that the provided project string is valid
-assert_project "$PROJECT"
+assert_project "$PROJECT" || exit 1;
 
 DATAPATH="$USER/scratch/$PROJECT"
 SOURCEPATH="$USER/PIGS"
@@ -117,6 +116,11 @@ for type in "${SPECIES[@]}"; do
     ln -s "$PROJECTPATH/initial.$type.ic" "initial.$type.ic"
 done
 
+# copy over the wave vectors file for computation of structure factor
+if [[ -e "$PROJECTPATH/wavevectors" ]]; then
+    ln -s "$PROJECTPATH/wavevectors" wavevectors
+fi
+
 echo -e "Creation of symbolic links has finished\n"
 
 # NEW FUNCTIONALITY: Submit a SLURM job from inside the optimal time-step search job
@@ -126,24 +130,21 @@ echo "----------------------------------------------------------------------"
 echo "Running QMC simulation with $NUM_TIME_SLICES time slices"
 echo -e "----------------------------------------------------------------------\n"
 
+echo "Current working directory: $(pwd)"
+echo "Starting run at: $(date)"
+
 TOTAL_BLOCKS=$(grep "PASS" "$NEW_CONFIG_FILE" | cut -d " " -f 2)
 PASSES_PER_BLOCK=$(grep "PASS" "$NEW_CONFIG_FILE" | cut -d " " -f 2)
 echo "Running simulation with $TOTAL_BLOCKS blocks and $PASSES_PER_BLOCK passes per block"
 
 if [ "$JOBLESS" = 1 ]; then 
     echo -e "Script was not submitted through Slurm"
-    $USER/scratch/job_scripts/run_standalone.sh "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
-    $USER/scratch/job_scripts/run_standalone.sh "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
-    $USER/scratch/job_scripts/run_standalone.sh "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
+    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
 else
     echo "Script was submitted through Slurm as a job"
     echo -e "Attempting to run simulation inside directory $NEW"
-    sbatch "$USER/scratch/job_scripts/run_standalone.sh" "$NEW" "$TOTAL_BLOCKS" "$PASSES_PER_BLOCK"
+    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
 fi
-
-# plot the output files using a gnuplot script
-# PLOTTING_SCRIPT="$USER/scratch/postprocessing/plot_files.p"
-# gnuplot -e "dirname='$NEW'" "$PLOTTING_SCRIPT"
 
 # ------------------------------- #
 #    MAIN BODY OF SCRIPT ENDS     #

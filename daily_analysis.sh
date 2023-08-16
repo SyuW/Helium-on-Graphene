@@ -50,12 +50,18 @@ module load scipy-stack
 
 source "$USER/scratch/job_scripts/functions.sh"
 
+# path-to-directory
 DIR="$1"
 
-# create a file meant for holding the extrapolated superfluid fractions, obtained by fitting
+# file meant for holding the extrapolated superfluid fractions vs varying parameter, obtained by fitting
 # to S(t) averaged over different runs within ensemble
 EXTRAPOLATED="$DIR/extrapolated_sf_fractions"
 echo "# parameter  sf_fraction  error" > "$EXTRAPOLATED"
+
+# file meant for holding average energy (kinetic, potential, total) vs varying parameter, obtained by
+# averaging energies over different runs within ensemble, and then performing a final block average
+ENERGIES="$DIR/energy_dependence"
+echo "# parameter kinetic kinetic_err potential potential_err total total_err" > "$ENERGIES"
 
 # -------------------------- #
 #    BEGIN FILE COMBINING    #
@@ -64,6 +70,7 @@ echo "# parameter  sf_fraction  error" > "$EXTRAPOLATED"
 # iterate over all ensemble directories at the path
 find "$DIR" -type d -name "*ensemble" -exec dirname {} \; | awk -F/ '{print $NF}' | sort --field-separator=_ -k 2 -n | while read -r dir
 do 
+    # 'dir' is the directory representing a specific instance of a parameter
     dir_path="$DIR/$dir/ensemble"
     echo "Processing directory: $dir_path"
 
@@ -72,7 +79,7 @@ do
     # ------------------------------- #
 
     # first, fit the superfluid fractions for each individual run
-    # and output extrapolated superfluid fractions from each run 
+    # and output extrapolated superfluid fractions S(\infty) from each run 
     SF_ALL_RUNS="$DIR/$dir/ensemble/sf_all_runs"
     echo "# run sf_fraction error" > "$SF_ALL_RUNS"
     find "$dir_path" -type d -name "run_*" | awk -F/ '{print $NF}' | sort --field-separator=_ -k 2 -n | while read -r run
@@ -92,7 +99,7 @@ do
     gnuplot -e "directory='$dir_path'" "$USER/scratch/postprocessing/plot_all_sf.p" 
 
     # average S(t) over different runs within ensemble -- outputs a 'sf_fractions_combined' file
-    python $USER/scratch/postprocessing/combine_sf_all_runs.py --dirname "$dir_path"
+    python $USER/scratch/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".sd"
 
     # plot the averaged S(t)
     gnuplot -e "set terminal pngcairo; set output '$dir_path/sf_fractions_combined.png'; \
@@ -119,8 +126,22 @@ do
     #   BEGIN ENERGETICS    #
     # --------------------- #
 
+    # average energies over different runs within ensemble -- outputs a 'energies_combined' file
+    python $USER/scratch/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".en"
 
+    # perform a final block average
+    # current block size is 20 for binned average, may change in the future
+    # if I write a routine to determine the autocorrelation length
+    OUTPUT=$(python $USER/scratch/postprocessing/block_average.py --filename "$dir_path/energies_combined" \
+                                                                  --throwaway 0 \
+                                                                  --block_size 20 \
+                                                                  --indices '1,2,3')
 
+    VALUE=$(echo "$dir" | cut -d '_' -f 2)
+    MODIFIED_OUTPUT=$(echo "$OUTPUT" | awk -v new_val="$VALUE" '{$1 = new_val}1')
+
+    echo "$MODIFIED_OUTPUT" >> "$ENERGIES"
+    
     # --------------------- #
     #   END ENERGETICS      #
     # --------------------- #
@@ -139,8 +160,8 @@ done
 gnuplot -e "directory='$DIR'" $USER/scratch/postprocessing/plot_sf_curve_variations.p
 
 # plot the extrapolated superfluid fractions S(\infty) for variations in parameter
-gnuplot -e "set terminal pngcairo; set output '$DIR/extrapolated_sf_fractions.png'; \
-            plot '$DIR/extrapolated_sf_fractions' u 1:2:3 w yerr t 'data'"
+gnuplot -e "set terminal pngcairo; set output '$EXTRAPOLATED.png'; \
+            plot '$EXTRAPOLATED' u 1:2:3 w yerr t 'data'"
 
 # if submitted as a job script, also visualize the files for every run
 if [ -n "$SLURM_JOB_ID" ]; then

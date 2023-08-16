@@ -13,10 +13,20 @@ mkdir -p "$USER/logs/plot_files"
 
 module load gnuplot
 
+
+usage () {
+    echo "Usage: ./plot_files.sh <directory-with-simulation>"
+    exit 0
+}
+
 source "$USER/scratch/job_scripts/functions.sh"
 
-CHOICE_DIR=$1
+DIR=$1
 
-check_sim_path "$CHOICE_DIR"
+check_argument "$DIR" || usage
+check_sim_restart "$DIR" || usage
 
-gnuplot -e "dirname='$CHOICE_DIR'" "$USER/scratch/postprocessing/plot_files.p"
+cd "$DIR" || { echo "Cannot change to directory, maybe doesn't exist?" ; exit 1; }
+CURRENT=$(pwd)
+
+gnuplot -e "dirname='$CURRENT'" "$USER/scratch/postprocessing/plot_files.p"

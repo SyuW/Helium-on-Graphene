@@ -1,6 +1,6 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=7-00:00:00
+#SBATCH --time=18-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=restart
@@ -36,7 +36,7 @@ source "$USER/scratch/job_scripts/functions.sh"
 
 DIR=$1
 check_argument "$DIR"
-check_sim_path "$DIR"
+check_sim_restart "$DIR"
 
 NAME=$(basename "$DIR")
 

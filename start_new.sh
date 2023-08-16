@@ -1,6 +1,6 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=20-00:00:00
+#SBATCH --time=15-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=start_new
