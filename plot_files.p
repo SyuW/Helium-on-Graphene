@@ -79,6 +79,17 @@ do for [fn in system("ls ".dirname)] {
         unset output
     }
 
+    # plot the structure factor
+    if (two_letter_suffix eq ".sq") {
+        filename=sprintf(output_folder."/%s_sq.png",substr(fn,0,len-3))
+        set output filename
+        set ylabel "Structure factor S(q)"
+        set xlabel "Wavevector q"
+        set title "Structure factor"
+        plot data u 1:2 w yerr title "data"
+        unset output
+    }
+
     # plot the paths of particles
     if (three_letter_suffix eq ".vis") {
         carbon_ic_file = dirname."/initial.c.ic"
@@ -101,9 +112,6 @@ do for [fn in system("ls ".dirname)] {
         plot data using 1:2:3 w yerr title "Data"
         unset output
     }
-
-    # plot the structure factor
-    
 
 }
 
