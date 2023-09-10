@@ -45,7 +45,7 @@ if [[ -z $SIMULATION_DIR ]]; then
 fi
 
 # access functions
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 NAME=$( basename "$SIMULATION_DIR" )
 
@@ -138,7 +138,7 @@ else
     combine_files "$COMBINED_FILE" "$ENERGIES_FILE" "$COMBINED_FILE"
     
     rm "$CHECKPOINT_FILE"
-    gnuplot -e "dirname='$SIMULATION_DIR'" "$USER/scratch/postprocessing/plot_files.p"
+    gnuplot -e "dirname='$SIMULATION_DIR'" "$USER/scratch/scripts/postprocessing/plot_files.p"
 
     echo "$NAME simulation complete" > "$COMPLETE_FILE"
 fi

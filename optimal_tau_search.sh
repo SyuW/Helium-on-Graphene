@@ -5,7 +5,7 @@
 #SBATCH --mem=500M
 #SBATCH --job-name=optimal_tau
 #SBATCH --output=/home/syu7/logs/optimal_tau_search/%x_slices_%t_id_%j.out
-#SBATCH --array=20,40,80,160,320,640      # Enter the time slices you want to examine here
+#SBATCH --array=2560     # Enter the time slices you want to examine here
 # -------------------------------------------
 
 # -------------------------------------------------------------------------------------------------------------------------------- #
@@ -20,7 +20,7 @@
 #   This procedure is performed using two scripts:                                                                                 #
 #     - optimal_tau_search.sh: responsible for creating all the necessary files/directories for running the simulations            #
 #                               - formulated as an array job                                                                       #
-#     - run_standalone.sh: responsible for running the simulations and restarting                                                  #
+#     - start_new.sh: responsible for running the simulations after necessary                                                #
 # -------------------------------------------------------------------------------------------------------------------------------- #
 
 # ---------------------------------------- #
@@ -29,7 +29,7 @@
 
 usage () {
     echo "Usage: ./optimal_tau_search.sh <project> <projection-time>"
-    exit 0
+    exit 1
 }
 
 # -------------------------- #
@@ -44,7 +44,7 @@ mkdir -p "/home/syu7/logs/optimal_tau_search"
 
 USER="/home/syu7"
 
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 # use the first command-line argument as the project
 PROJECT=$1
@@ -139,11 +139,11 @@ echo "Running simulation with $TOTAL_BLOCKS blocks and $PASSES_PER_BLOCK passes 
 
 if [ "$JOBLESS" = 1 ]; then 
     echo -e "Script was not submitted through Slurm"
-    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
+    sbatch "$USER/scratch/scripts/job_scripts/start_new.sh" "$NEW"
 else
     echo "Script was submitted through Slurm as a job"
     echo -e "Attempting to run simulation inside directory $NEW"
-    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
+    sbatch "$USER/scratch/scripts/job_scripts/start_new.sh" "$NEW"
 fi
 
 # ------------------------------- #

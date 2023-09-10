@@ -25,11 +25,11 @@ module load "gnuplot"
 
 usage () {
   echo "Usage: ./run_ensemble <directory-to-be-ensembled> <number-of-blocks> <passes-per-block>"
-  exit 0
+  exit 1
 }
 
 USER="/home/syu7"
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 SOURCEPATH=$1
 NUMBER_OF_BLOCKS=$2
@@ -107,5 +107,5 @@ if ! (exit $STATUS); then
 else
     echo -e "Simulation completed successfully\n"
     # plot the output files
-    gnuplot -e "dirname='$NEW'" "$USER/scratch/postprocessing/plot_files.p"
+    gnuplot -e "dirname='$NEW'" "$USER/scratch/scripts/postprocessing/plot_files.p"
 fi

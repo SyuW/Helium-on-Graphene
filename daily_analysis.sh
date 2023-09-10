@@ -1,6 +1,6 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=0-00:30:00
+#SBATCH --time=0-01:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=daily_analysis
@@ -48,10 +48,12 @@ mkdir -p "$USER/logs/daily_analysis"
 module load gnuplot
 module load scipy-stack
 
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 # path-to-directory
 DIR="$1"
+
+check_argument "$DIR" || usage
 
 # file meant for holding the extrapolated superfluid fractions vs varying parameter, obtained by fitting
 # to S(t) averaged over different runs within ensemble
@@ -78,37 +80,53 @@ do
     #    BEGIN SUPERFLUID FRACTION    #
     # ------------------------------- #
 
+    printf "\n"
+    echo "# --------------------------------------------------- #"
+    echo "#        Processing Superfluid Fractions              #"
+    echo "# --------------------------------------------------- #"
+    printf "\n"
+
     # first, fit the superfluid fractions for each individual run
-    # and output extrapolated superfluid fractions S(\infty) from each run 
+    # and output extrapolated superfluid fractions S(\infty) from each run
+
     SF_ALL_RUNS="$DIR/$dir/ensemble/sf_all_runs"
+    echo "Fitting superfluid fractions for each individual run, and outputting to $SF_ALL_RUNS:"
+    printf "\n"
+
     echo "# run sf_fraction error" > "$SF_ALL_RUNS"
     find "$dir_path" -type d -name "run_*" | awk -F/ '{print $NF}' | sort --field-separator=_ -k 2 -n | while read -r run
     do
         run_path=$(find "$dir_path/$run" -type f -name "*.sd")
-        echo "Processing directory $run_path"
+        echo "Processing superfluid fraction file $run_path"
         RUN_NUM=$(echo "$run" | cut -d '_' -f 2)
-        OUTPUT=$(python $USER/scratch/postprocessing/superfluid_fit.py --filename "$run_path" \
+        OUTPUT=$(python $USER/scratch/scripts/postprocessing/superfluid_fit.py --filename "$run_path" \
                                                                        --throwaway_first \
                                                                        --throwaway_last \
+                                                                       --skip 10 \
                                                                        --save)
         MODIFIED_OUTPUT=$(echo "$OUTPUT" | awk -v new_val="$RUN_NUM" '{$1 = new_val}1')
         echo "$MODIFIED_OUTPUT" >> "$SF_ALL_RUNS"
     done
 
     # plot superfluid fractions for different random seeds all onto one plot
-    gnuplot -e "directory='$dir_path'" "$USER/scratch/postprocessing/plot_all_sf.p" 
+    echo "Plotting superfluid fractions for different random seeds all onto one plot:"
+    gnuplot -e "directory='$dir_path'" "$USER/scratch/scripts/postprocessing/plot_all_sf.p" 
 
     # average S(t) over different runs within ensemble -- outputs a 'sf_fractions_combined' file
-    python $USER/scratch/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".sd"
+    echo "averaging superfluid fractions over different runs within ensemble > sf_fractions_combined"
+    python $USER/scratch/scripts/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".sd"
 
     # plot the averaged S(t)
+    echo "plotting the averaged superfluid fraction > sf_fractions_combined.png"
     gnuplot -e "set terminal pngcairo; set output '$dir_path/sf_fractions_combined.png'; \
                 plot '$dir_path/sf_fractions_combined' u 1:2:3 w yerr t 'data'"
 
     # then fit the 'sf_fractions_combined' file and pipe output to extrapolated sf_fractions file
-    OUTPUT=$(python $USER/scratch/postprocessing/superfluid_fit.py --filename "$dir_path/sf_fractions_combined" \
+    echo "fitting the averaged superfluid fraction"
+    OUTPUT=$(python $USER/scratch/scripts/postprocessing/superfluid_fit.py --filename "$dir_path/sf_fractions_combined" \
                                                                    --throwaway_first \
                                                                    --throwaway_last \
+                                                                   --skip 10 \
                                                                    --save)
 
     # Python script outputs the path of the original file as the first field, so we have to extract the value
@@ -126,16 +144,27 @@ do
     #   BEGIN ENERGETICS    #
     # --------------------- #
 
+    printf "\n"
+    echo "# --------------------------------------------------- #"
+    echo "#               Processing Energies                   #"
+    echo "# --------------------------------------------------- #"
+    printf "\n"
+
     # average energies over different runs within ensemble -- outputs a 'energies_combined' file
-    python $USER/scratch/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".en"
+    python $USER/scratch/scripts/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".en"
+
+    # plot the energies therein
+    AVGED_ENERGIES="$dir_path/energies_combined"
+    gnuplot -e "set terminal pngcairo; set output '$AVGED_ENERGIES.png'; \
+            plot '$AVGED_ENERGIES' u 1:4 w yerr t 'data'; set title 'Averaged energies for $DIR/$dir'"
 
     # perform a final block average
     # current block size is 20 for binned average, may change in the future
     # if I write a routine to determine the autocorrelation length
-    OUTPUT=$(python $USER/scratch/postprocessing/block_average.py --filename "$dir_path/energies_combined" \
-                                                                  --throwaway 0 \
-                                                                  --block_size 20 \
-                                                                  --indices '1,2,3')
+    OUTPUT=$(python $USER/scratch/scripts/postprocessing/block_average.py --filename "$dir_path/energies_combined" \
+                                                                          --throwaway 0 \
+                                                                          --block_size 20 \
+                                                                          --indices '1,2,3')
 
     VALUE=$(echo "$dir" | cut -d '_' -f 2)
     MODIFIED_OUTPUT=$(echo "$OUTPUT" | awk -v new_val="$VALUE" '{$1 = new_val}1')
@@ -145,6 +174,22 @@ do
     # --------------------- #
     #   END ENERGETICS      #
     # --------------------- #
+
+    # ------------------------------- #
+    #   BEGIN STRUCTURAL QUANTITIES   #
+    # ------------------------------- #
+
+    printf "\n"
+    echo "# -------------------------------------------------- #"
+    echo "#         Processing Structural Quantities           #"
+    echo "# -------------------------------------------------- #"
+    printf "\n"
+
+    # try to calculate a weighted average of structure factor
+
+    # ----------------------------- #
+    #   END STRUCTURAL QUANTITIES   #
+    # ----------------------------- #
 
 done
 
@@ -156,20 +201,38 @@ done
 #   BEGIN VISUALIZATION  #
 # ---------------------- #
 
+printf "\n"
+echo "# -------------------------------------------------- #"
+echo "#               CREATING VISUALIZATIONS              #"
+echo "# -------------------------------------------------- #"
+printf "\n"
+
 # plot the superfluid fraction curves S(t) for variations in parameter
-gnuplot -e "directory='$DIR'" $USER/scratch/postprocessing/plot_sf_curve_variations.p
+echo "plotting superfluid fraction curves versus parameter variations"
+gnuplot -e "directory='$DIR'" $USER/scratch/scripts/postprocessing/plot_sf_curve_variations.p
 
 # plot the extrapolated superfluid fractions S(\infty) for variations in parameter
+echo "plotting extrapolated superfluid fractions versus parameter variations"
 gnuplot -e "set terminal pngcairo; set output '$EXTRAPOLATED.png'; \
             plot '$EXTRAPOLATED' u 1:2:3 w yerr t 'data'"
 
 # if submitted as a job script, also visualize the files for every run
+echo "creating plots for each and every run"
 if [ -n "$SLURM_JOB_ID" ]; then
     echo "Script was submitted as SLURM job, plotting all files"
-    find "$DIR" -type d -name "run_*" -exec "$USER/scratch/job_scripts/plot_files.sh" {} \;
+    find "$DIR" -type d -name "run_*" -exec "$USER/scratch/scripts/job_scripts/plot_files.sh" {} \;
 fi
+
+# plot the total energy dependence versus variations in parameter
+echo "plotting energy dependence on parameter"
+gnuplot -e "set terminal pngcairo; set output '$ENERGIES.png'; \
+            plot '$ENERGIES' u 1:6:7 w yerr t 'data'"
 
 # --------------------- #
 #   END VISUALIZATION   #
 # --------------------- #
+
+# create a note so that I know when daily analysis was last successfully run start to finish
+NOTE="$DIR/daily_analysis_note"
+echo "Last daily analysis successfully finished: $(date)" > "$NOTE"
 

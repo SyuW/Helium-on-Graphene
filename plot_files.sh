@@ -19,7 +19,7 @@ usage () {
     exit 0
 }
 
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 DIR=$1
 
@@ -29,4 +29,4 @@ check_sim_restart "$DIR" || usage
 cd "$DIR" || { echo "Cannot change to directory, maybe doesn't exist?" ; exit 1; }
 CURRENT=$(pwd)
 
-gnuplot -e "dirname='$CURRENT'" "$USER/scratch/postprocessing/plot_files.p"
+gnuplot -e "dirname='$CURRENT'" "$USER/scratch/scripts/postprocessing/plot_files.p"

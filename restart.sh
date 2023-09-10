@@ -32,7 +32,7 @@ mkdir -p "$USER/logs/restart"
 echo "Current working directory: $(pwd)"
 echo -e "Starting run at: $(date)\n"
 
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 DIR=$1
 check_argument "$DIR"

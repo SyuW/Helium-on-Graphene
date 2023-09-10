@@ -1,6 +1,6 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=15-00:00:00
+#SBATCH --time=0-01:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=start_new
@@ -19,6 +19,10 @@ usage () {
 #   END FUNCTIONS
 # -------------------------------------------
 
+# --------------------------------------------
+#   BEGIN MAIN BODY
+# --------------------------------------------
+
 module load "StdEnv/2020"
 module load "scipy-stack"
 module load "gnuplot"
@@ -28,7 +32,7 @@ mkdir -p "$USER/logs/start_new"
 echo "Current working directory: $(pwd)"
 echo -e "Starting run at: $(date)\n"
 
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 DIR=$1
 check_argument "$DIR" || (usage; exit 1)

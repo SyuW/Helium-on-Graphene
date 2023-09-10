@@ -5,7 +5,7 @@
 #SBATCH --mem=500M
 #SBATCH --job-name=optimal_beta
 #SBATCH --output=/home/syu7/logs/optimal_beta_search/%x_index_%t_id_%j.out
-#SBATCH --array=0,1,2,3,4,5,6     # Array indices for accessing different projection times
+#SBATCH --array=1-100     # Array indices for accessing different projection times
 # -------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------------------ #
@@ -36,6 +36,8 @@ usage () {
 #    MAIN BODY OF SCRIPT BEGINS   #
 # ------------------------------- #
 
+module load scipy-stack
+
 USER="/home/syu7"
 
 mkdir -p "$USER/logs/optimal_beta_search"
@@ -43,11 +45,13 @@ echo "Current working directory: $(pwd)"
 echo -e "Starting run at: $(date)\n"
 
 # get functions
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 # use the first command-line argument as the project
 PROJECT=$1
 TAU=$2
+# classical choice is beta_multiple=0.0625
+UNIT_BETA=$3
 
 check_argument "$PROJECT" || usage
 check_argument "$TAU" || usage
@@ -64,7 +68,7 @@ SOURCEPATH="$USER/PIGS"
 PROJECTPATH="$SOURCEPATH/WORK/experiments/$PROJECT"_experiment
 
 # check whether the script was submitted as part of a slurm job
-DEFAULT_INDEX=0
+DEFAULT_INDEX=1
 if [ -z "$SLURM_ARRAY_TASK_ID" ]; then
     echo -e "Array task id is not defined. Using the following value: $DEFAULT_INDEX\n"
     SLURM_ARRAY_TASK_ID=$DEFAULT_INDEX
@@ -75,18 +79,24 @@ else
 fi
 
 # use a fixed projection time for simulations of varying time-step
-BETAS=( 0.0625 0.125 0.25 0.5 1.0 2.0 4.0 )
-SLICES_OPTIONS=()
-for beta in "${BETAS[@]}"; do
-    result=$(python -c "print(int($beta / $TAU))")
-    SLICES_OPTIONS+=("$result")
-done
+# BETAS=( 0.0625 0.125 0.25 0.5 1.0 2.0 4.0 )
+# SLICES_OPTIONS=()
+# for beta in "${BETAS[@]}"; do
+#     result=$(python -c "print(int($beta / $TAU))")
+#     SLICES_OPTIONS+=("$result")
+# done
 
-echo "Using the time slices: ${SLICES_OPTIONS[*]}"
+# echo "Using the time slices: ${SLICES_OPTIONS[*]}"
 
 # use the index coming from the array job to select projection time/number of slices
-BETA=${BETAS[$SLURM_ARRAY_TASK_ID]}
-NUM_TIME_SLICES=${SLICES_OPTIONS[$SLURM_ARRAY_TASK_ID]}
+
+MULTIPLE="$SLURM_ARRAY_TASK_ID"
+
+BETA=$(python -c "print('{:.5f}'.format($MULTIPLE * $UNIT_BETA))")
+NUM_TIME_SLICES=$(python -c "print(int($BETA / $TAU))")
+
+# BETA=${BETAS[$SLURM_ARRAY_TASK_ID]}
+# NUM_TIME_SLICES=${SLICES_OPTIONS[$SLURM_ARRAY_TASK_ID]}
 
 # base directory for doing the optimal timestep search procedure
 BETA_DIR="fixed_optimal_beta_tau_$TAU"
@@ -121,6 +131,11 @@ echo "Creating necessary symbolic links"
 ln -s "$SOURCEPATH/source/tools/average" average
 ln -s "$SOURCEPATH/source/vpi" vpi
 
+# copy over the wave vectors file for computation of structure factor
+if [[ -e "$PROJECTPATH/wavevectors" ]]; then
+    ln -s "$PROJECTPATH/wavevectors" wavevectors
+fi
+
 # .ic files with the initial positions of particle species
 for type in "${SPECIES[@]}"; do
     ln -s "$PROJECTPATH/initial.$type.ic" "initial.$type.ic"
@@ -141,11 +156,11 @@ echo "Running simulation with $TOTAL_BLOCKS blocks and $PASSES_PER_BLOCK passes 
 
 if [ "$JOBLESS" = 1 ]; then 
     echo -e "Script was not submitted through Slurm"
-    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
+    sbatch "$USER/scratch/scripts/job_scripts/start_new.sh" "$NEW"
 else
     echo "Script was submitted through Slurm as a job"
     echo -e "Attempting to run simulation inside directory $NEW"
-    sbatch "$USER/scratch/job_scripts/start_new.sh" "$NEW"
+    sbatch "$USER/scratch/scripts/job_scripts/start_new.sh" "$NEW"
 fi
 
 # ------------------------------- #

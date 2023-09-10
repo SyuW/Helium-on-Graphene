@@ -20,14 +20,14 @@ fi
 USER="/home/syu7"
 mkdir -p "$USER/logs/sf_bootstrap"
 
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 # command-line arguments
 ROOT_PATH=$1
 
 check_argument "$ROOT_PATH"
 
-SCRIPT_FILE="$USER/scratch/postprocessing/superfluid_fit.py"
+SCRIPT_FILE="$USER/scratch/scripts/postprocessing/superfluid_fit.py"
 
 # echo "Running bootstrap analysis as part of SLURM job"
 
