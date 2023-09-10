@@ -9,7 +9,7 @@ module load scipy-stack
 
 USER="/home/syu7"
 
-source "$USER/scratch/job_scripts/functions.sh"
+source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 visualize_ensemble_dir() {
 

@@ -20,7 +20,7 @@ def find_files_with_extension(directory, pattern):
 
 
 """
-Get line containing a particular strings
+Get line containing a particular string
 """
 def get_line_containing_string(file_path, target_string):
     try:
@@ -88,10 +88,13 @@ def combine_en(dirname, extension):
             total_array[:found_blocks, i] = data[:, 3]
 
     # stack the arrays into the form row -- time, column -- run
+    # if the simulations haven't completed yet, this nanmean will raise a RuntimeWarning since some
+    # rows will be all NaN, that's okay
     kin_avg = np.nanmean(kinetic_array, axis=1)
     pot_avg = np.nanmean(potential_array, axis=1)
     total_avg = np.nanmean(total_array, axis=1)
 
+    # remove entries which are NaN (corresponding to all NaN rows in original array)
     kin_avg = kin_avg[~np.isnan(kin_avg)]
     pot_avg = pot_avg[~np.isnan(pot_avg)]
     total_avg = total_avg[~np.isnan(total_avg)]
