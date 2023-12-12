@@ -1,5 +1,19 @@
 #!/bin/bash
 
+
+# get the value of a variable `arg` from user input
+get_input () {
+    export "$1"=""
+    export msg="$2"
+    while [[ -z $"$1" ]]
+    do
+        echo "$msg"
+        read "$1"
+        echo ""
+    done
+}
+
+
 # combine both files - excluding the first line mind you (which is the header)
 # and uniformize the line numbers
 combine_files() {
@@ -17,6 +31,7 @@ combine_files() {
     rm "temp.txt"
 }
 
+
 # check whether the provided project string is valid (pertains to an existing project)
 assert_project () {
 
@@ -33,6 +48,7 @@ assert_project () {
     echo "Given project '$PROJECT' doesn't exist, aborting"
     return 1
 }
+
 
 # check whether the provided path contains the necessary files for restarting
 check_sim_restart() {
@@ -63,6 +79,7 @@ check_sim_restart() {
   echo "# --------------------------------------------------"
 }
 
+
 # check whether the provided path contains necessary files for starting anew
 check_sim_begin() {
   local DIR=$1
@@ -71,16 +88,14 @@ check_sim_begin() {
   local INITIAL_POS_FILE
 
   CONFIG_FILE=$(find "$DIR" -maxdepth 1 -name '*.sy')
-  EXECUTABLE=$(find "$DIR" -maxdepth 1 -name '*vpi')
   INITIAL_POS_FILE=$(find "$DIR" -maxdepth 1 -name "*.ic")
 
   echo "# --------------------------------------------------"
   echo "Files found:"
   echo "$CONFIG_FILE"
-  echo "$EXECUTABLE"
   echo "$INITIAL_POS_FILE"
 
-  if [[ -z "$CONFIG_FILE" || -z "$EXECUTABLE" || -z "$INITIAL_POS_FILE" ]]; then
+  if [[ -z "$CONFIG_FILE" || -z "$INITIAL_POS_FILE" ]]; then
     echo -e "Missing required files"
     # exit 1
   else
@@ -88,6 +103,7 @@ check_sim_begin() {
   fi
   echo "# ---------------------------------------------------"
 }
+
 
 # check that the provided arg is not empty
 check_argument() {
@@ -97,6 +113,7 @@ check_argument() {
       return 1
     fi
 }
+
 
 # ordering of parameters to config_parser: 
 # <path to experiment config file> <path to prod config file> <time slices> <projection time>
@@ -111,7 +128,7 @@ config_parser () {
     echo "Path to experiment's configuration given: $EXPERIMENT_CONFIG_FILE"
 
     # allowed directives
-    local DIRECTIVES=( "BOX" "TYPE" "POTL" "JSTR" "QVEC" "SLICES" "BETA" "PASS" )
+    local DIRECTIVES=( "BOX" "TYPE" "POTL" "JSTR" "QVEC" "SLICES" "BETA" "PASS" "PLANE" )
 
     # particle species in the simulation
     SPECIES=()
@@ -167,6 +184,7 @@ config_parser () {
     cat "$PRODUCTION_CONFIG_FILE"
     echo -e "Finished printing out the contents\n"
 }
+
 
 # Function to check if a string is a float
 is_float() {

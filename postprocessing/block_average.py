@@ -46,11 +46,13 @@ if __name__ == "__main__":
     parser.add_argument("--throwaway", help="number of initial datapoints to throw away", type=int)
     parser.add_argument("--block_size", help="number of datapoints per bin for block average", type=int)
     parser.add_argument("--indices", help="indices for accessing the array: pass as string '1,2,3' etc.", type=str)
+    parser.add_argument("--include_filename", help="whether to include the filename in the output", action="store_true", default=False)
     args = parser.parse_args()
 
-    with open(args.filename) as f:
-        lines = (line for line in f if not line.startswith('#'))
-        data = np.loadtxt(lines)
+    data = np.loadtxt(args.filename)
 
     output = average_all(data, args.block_size, args.throwaway, [int(x) for x in args.indices.split(',')])
-    print(f"{args.filename} {output}")
+    if args.include_filename:
+        print(f"{args.filename} {output}")
+    else:
+        print(f"{output}")

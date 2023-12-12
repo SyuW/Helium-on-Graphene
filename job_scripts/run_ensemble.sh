@@ -4,8 +4,8 @@
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=ensemble
-#SBATCH --output=/home/syu7/logs/ensemble/seed_%x_%j.out
-#SBATCH --array=1-20       # enumerating random seeds to use
+#SBATCH --output=/home/syu7/logs/ensemble/seed_%a_%j.out
+#SBATCH --array=1-100       # enumerating random seeds to use
 # -------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------------------ #
@@ -17,10 +17,6 @@
 #   data they produce is identical). This technique is known as 'serial farming' and allows us to accumulate more data     #
 #   and reduce statistical errors during data analysis.                                                                    #
 # ------------------------------------------------------------------------------------------------------------------------ #
-
-module load "StdEnv/2020"
-module load "scipy-stack"
-module load "gnuplot"
 
 
 usage () {
@@ -83,7 +79,7 @@ mkdir -p "$NEW"
 find -L "$SOURCEPATH" -maxdepth 1 -type f -not -path '*.iseed' -exec cp {} "$NEW" \;
 
 # now, we have to replace the random seed file
-cp "$USER/scratch/random_seeds/generated_seeds/seed$SEED_NUMBER.iseed" "$NEW"
+cp "$USER/scratch/random_seeds/seeds_from_2d_helium_2/seed$SEED_NUMBER.iseed" "$NEW"
 # changing the name of the random seed file to be the same as the parent directory is necessary
 mv "$NEW/seed$SEED_NUMBER.iseed" "$NEW/$NAME.iseed"
 
@@ -98,7 +94,7 @@ grep -qxF 'RESTART' "$CONFIG_FILE" || echo 'RESTART' >> "$CONFIG_FILE"
 # start the simulation
 cd "$NEW" || exit 1
 DIR=$(pwd)
-echo "$NAME" | ./vpi > "$DIR/$NAME.out"
+echo "$NAME" | vpi > "$DIR/$NAME.out"
 
 STATUS=$?
 if ! (exit $STATUS); then
@@ -107,5 +103,6 @@ if ! (exit $STATUS); then
 else
     echo -e "Simulation completed successfully\n"
     # plot the output files
+    module load "gnuplot"
     gnuplot -e "dirname='$NEW'" "$USER/scratch/scripts/postprocessing/plot_files.p"
 fi

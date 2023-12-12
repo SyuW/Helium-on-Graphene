@@ -1,6 +1,6 @@
 #!/bin/bash
 # --------------------------------------------
-#SBATCH --time=0-01:00:00
+#SBATCH --time=15-00:00:00
 #SBATCH --account=def-massimo
 #SBATCH --mem=500M
 #SBATCH --job-name=start_new
@@ -12,7 +12,8 @@
 # -------------------------------------------
 
 usage () {
-    echo "Usage: ./start_new.sh <simulation directory path>"
+    echo "Usage: ./start_new.sh <simulation directory path> <input-id>"
+    exit 1
 }
 
 # -------------------------------------------
@@ -23,28 +24,29 @@ usage () {
 #   BEGIN MAIN BODY
 # --------------------------------------------
 
-module load "StdEnv/2020"
-module load "scipy-stack"
-module load "gnuplot"
+user="/home/syu7"
 
-USER="/home/syu7"
-mkdir -p "$USER/logs/start_new"
+source "$user/scratch/scripts/job_scripts/functions.sh"
+
+# get_input dir "enter the simulation directory: "
+# get_input name "enter the simulation's input id: "
+
+dir=$1 
+name=$2
+
+check_argument "$dir" || usage
+check_argument "$name" || usage
+
+check_sim_begin "$dir" || usage
+
+mkdir -p "$user/logs/start_new"
 echo "Current working directory: $(pwd)"
 echo -e "Starting run at: $(date)\n"
 
-source "$USER/scratch/scripts/job_scripts/functions.sh"
-
-DIR=$1
-check_argument "$DIR" || (usage; exit 1)
-check_sim_begin "$DIR"
-
-# note: the NAME aka name of simulation directory should match the name of the config file 
-NAME=$(basename "$DIR")
-
 # make sure that you back up your energy file before running
-cd "$DIR" || { echo "Cannot change to sim. directory"; exit 1; }
-CURRENT=$(pwd)
-echo "$NAME" | ./vpi > "$CURRENT/$NAME.out"
+cd "$dir" || { echo "Cannot change to sim. directory"; exit 1; }
+current=$(pwd)
+echo "$name" | vpi > "$current/$name.out"
 
 # --------------------------------------------
 #   END MAIN BODY

@@ -87,24 +87,44 @@ do for [fn in system("ls ".dirname)] {
     if (two_letter_suffix eq ".sq") {
         filename=sprintf(output_folder."/%s_sq.png",substr(fn,0,len-3))
         set output filename
-        set ylabel "Structure factor S(q)"
+        set ylabel "S(q)"
         set xlabel "Wavevector q"
-        set title "Structure factor"
-        plot data u 1:2 w yerr title "data"
+        set title "Structure factor S(q)"
+        plot data u 1:2 w yerr title "data" pt 10
         unset output
     }
 
     # positions of particles with all periodic images brought back into fundamental domain
     if (three_letter_suffix eq ".vis") {
 
-        # plot the paths of particles and compare with graphene absorption sites
+
         carbon_ic_file = dirname."/initial.c.ic"
-        filename=sprintf(output_folder."/%s_vis.png",substr(fn,0,len-4))
+
+        # X-Y plane: plot the paths of particles and compare with graphene absorption sites
+        filename=sprintf(output_folder."/%s_vis_xy.png",substr(fn,0,len-4))
         set output filename
         set ylabel "Y"
         set xlabel "X"
-        set title "Paths in XY-plane traced by particles in imaginary time"
-        plot [-5:40] [-5:35] data u 1:2 t "helium", carbon_ic_file using 1:2 lt 7 lc "black" title "carbon"
+        set title "Imaginary time world-lines in XY-plane"
+        plot data u 1:2 t "helium", carbon_ic_file using 1:2 lt 7 lc "black" title "carbon"
+        unset output
+
+        # X-Z plane
+        filename=sprintf(output_folder."/%s_vis_xz.png",substr(fn,0,len-4))
+        set output filename
+        set ylabel "Z"
+        set xlabel "X"
+        set title "Imaginary time world-lines in XZ-plane"
+        plot data u 1:3 t "helium", carbon_ic_file using 1:3 lt 7 lc "black" title "carbon"
+        unset output
+
+        # Y-Z plane
+        filename=sprintf(output_folder."/%s_vis_yz.png",substr(fn,0,len-4))
+        set output filename
+        set ylabel "Z"
+        set xlabel "Y"
+        set title "Imaginary time world-lines in YZ-plane"
+        plot data u 2:3 t "helium", carbon_ic_file using 2:3 lt 7 lc "black" title "carbon"
         unset output
 
         # plot a histogram of the z positions of particles: should be roughly centered about well?
@@ -121,6 +141,7 @@ do for [fn in system("ls ".dirname)] {
         set style fill solid 0.5 # fill style
         plot data using (bin(binwidth,$3)):(1.0/STATS_records) smooth freq with boxes lc "green" notitle
     }
+
 
     # Plot the effective mass pseudo-current
     if (four_letter_suffix eq ".mass") {

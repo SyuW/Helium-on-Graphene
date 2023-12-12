@@ -5,7 +5,7 @@
 #SBATCH --mem=500M
 #SBATCH --job-name=optimal_beta
 #SBATCH --output=/home/syu7/logs/optimal_beta_search/%x_index_%t_id_%j.out
-#SBATCH --array=1-100     # Array indices for accessing different projection times
+#SBATCH --array=0,2,3     # Array indices for accessing different projection times
 # -------------------------------------------
 
 # ------------------------------------------------------------------------------------------------------------------------ #
@@ -51,7 +51,7 @@ source "$USER/scratch/scripts/job_scripts/functions.sh"
 PROJECT=$1
 TAU=$2
 # classical choice is beta_multiple=0.0625
-UNIT_BETA=$3
+BETAS=(0.125 0.25 0.5 1.0)
 
 check_argument "$PROJECT" || usage
 check_argument "$TAU" || usage
@@ -90,9 +90,10 @@ fi
 
 # use the index coming from the array job to select projection time/number of slices
 
-MULTIPLE="$SLURM_ARRAY_TASK_ID"
+INDEX="$SLURM_ARRAY_TASK_ID"
 
-BETA=$(python -c "print('{:.5f}'.format($MULTIPLE * $UNIT_BETA))")
+# BETA=$(python -c "print('{:.5f}'.format($MULTIPLE * $UNIT_BETA))")
+BETA="${BETAS[$INDEX]}"
 NUM_TIME_SLICES=$(python -c "print(int($BETA / $TAU))")
 
 # BETA=${BETAS[$SLURM_ARRAY_TASK_ID]}

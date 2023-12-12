@@ -17,7 +17,8 @@ LABELS = system("ls ".directory."/run_*/*.sd | xargs dirname | xargs -n 1 basena
 
 # set xrange[0:1]
 # set yrange[0:1.3]
-set key outside
+# set key outside
+set nokey
 plot for [i=1:words(FILES)] word(FILES,i) u 1:2:3 w yerr title word(LABELS, i)
 
 unset output

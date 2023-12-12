@@ -2,7 +2,9 @@
 # --------------------------------------------
 #SBATCH --time=0-01:00:00
 #SBATCH --account=def-massimo
-#SBATCH --mem=500M
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=48
 #SBATCH --job-name=daily_analysis
 #SBATCH --output=/home/syu7/logs/daily_analysis/daily_analysis_id_%j.out
 # --------------------------------------------
@@ -25,6 +27,10 @@
 # we're considering dependence on projection time, in which case 'slices' would become
 # 'beta' and instead of number of slices we would use the projection time value on the
 # other side of the delimiter
+
+# For each run directory, fit the superfluid fractions (found in .sd file), outputting
+# a plot of the fit as well as a file with the optimal fitting parameters. 
+#
 
 # ------------------------------------- #
 #          BEGIN FUNCTIONS              #
@@ -76,6 +82,9 @@ do
     dir_path="$DIR/$dir/ensemble"
     echo "Processing directory: $dir_path"
 
+    # count the number of runs in the directory
+    NUM_RUNS=$(find "$dir_path" -maxdepth 1 -type d -name "run_*" | wc -l)
+
     # ------------------------------- #
     #    BEGIN SUPERFLUID FRACTION    #
     # ------------------------------- #
@@ -89,32 +98,41 @@ do
     # first, fit the superfluid fractions for each individual run
     # and output extrapolated superfluid fractions S(\infty) from each run
 
-    SF_ALL_RUNS="$DIR/$dir/ensemble/sf_all_runs"
-    echo "Fitting superfluid fractions for each individual run, and outputting to $SF_ALL_RUNS:"
-    printf "\n"
+    # SF_ALL_RUNS="$DIR/$dir/ensemble/sf_all_runs"
+    # echo "Fitting superfluid fractions for each individual run, and outputting to $SF_ALL_RUNS:"
+    # printf "\n"
 
-    echo "# run sf_fraction error" > "$SF_ALL_RUNS"
-    find "$dir_path" -type d -name "run_*" | awk -F/ '{print $NF}' | sort --field-separator=_ -k 2 -n | while read -r run
-    do
-        run_path=$(find "$dir_path/$run" -type f -name "*.sd")
-        echo "Processing superfluid fraction file $run_path"
-        RUN_NUM=$(echo "$run" | cut -d '_' -f 2)
-        OUTPUT=$(python $USER/scratch/scripts/postprocessing/superfluid_fit.py --filename "$run_path" \
-                                                                       --throwaway_first \
-                                                                       --throwaway_last \
-                                                                       --skip 10 \
-                                                                       --save)
-        MODIFIED_OUTPUT=$(echo "$OUTPUT" | awk -v new_val="$RUN_NUM" '{$1 = new_val}1')
-        echo "$MODIFIED_OUTPUT" >> "$SF_ALL_RUNS"
-    done
+    # echo "# run sf_fraction error" > "$SF_ALL_RUNS"
+    # find "$dir_path" -type d -name "run_*" | awk -F/ '{print $NF}' | sort --field-separator=_ -k 2 -n | while read -r run
+    # do
+    #     run_path=$(find "$dir_path/$run" -type f -name "*.sd")
+    #     echo "Processing superfluid fraction file $run_path"
+    #     RUN_NUM=$(echo "$run" | cut -d '_' -f 2)
+    #     OUTPUT=$(python $USER/scratch/scripts/postprocessing/bootstrap_fit.py --filename "$run_path" \
+    #                                                                            --throwaway_first \
+    #                                                                            --throwaway_last \
+    #                                                                            --max_points=100 \
+    #                                                                            --bootstrap_iterations=100000 \
+    #                                                                            --cores="$SLURM_CPUS_PER_TASK" \
+    #                                                                            --save \
+    #                                                                            --method=bootstrap)
+    #     MODIFIED_OUTPUT=$(echo "$OUTPUT" | awk -v new_val="$RUN_NUM" '{$1 = new_val}1')
+    #     echo "$MODIFIED_OUTPUT" >> "$SF_ALL_RUNS"
+    # done
 
     # plot superfluid fractions for different random seeds all onto one plot
-    echo "Plotting superfluid fractions for different random seeds all onto one plot:"
-    gnuplot -e "directory='$dir_path'" "$USER/scratch/scripts/postprocessing/plot_all_sf.p" 
+    # echo "Plotting superfluid fractions for different random seeds all onto one plot:"
+    # gnuplot -e "directory='$dir_path'" "$USER/scratch/scripts/postprocessing/plot_all_sf.p" 
 
     # average S(t) over different runs within ensemble -- outputs a 'sf_fractions_combined' file
+    # use ~20 blocks for determining the error via blocking
+    NUM_BLOCKS=20
+    BLOCK_SIZE=$(python -c "from math import ceil; print(ceil($NUM_RUNS/$NUM_BLOCKS))")
     echo "averaging superfluid fractions over different runs within ensemble > sf_fractions_combined"
-    python $USER/scratch/scripts/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".sd"
+    echo "using $NUM_BLOCKS blocks with $BLOCK_SIZE runs per block"
+    python $USER/scratch/scripts/postprocessing/combine_files_all_runs.py --blocksize "$BLOCK_SIZE" \
+                                                                          --dirname "$dir_path" \
+                                                                          --extension ".sd"
 
     # plot the averaged S(t)
     echo "plotting the averaged superfluid fraction > sf_fractions_combined.png"
@@ -123,11 +141,14 @@ do
 
     # then fit the 'sf_fractions_combined' file and pipe output to extrapolated sf_fractions file
     echo "fitting the averaged superfluid fraction"
-    OUTPUT=$(python $USER/scratch/scripts/postprocessing/superfluid_fit.py --filename "$dir_path/sf_fractions_combined" \
-                                                                   --throwaway_first \
-                                                                   --throwaway_last \
-                                                                   --skip 10 \
-                                                                   --save)
+    OUTPUT=$(python $USER/scratch/scripts/postprocessing/bootstrap_fit.py --filename "$dir_path/sf_fractions_combined" \
+                                                                           --throwaway_first \
+                                                                           --throwaway_last \
+                                                                           --max_points=100 \
+                                                                           --bootstrap_iterations=100000 \
+                                                                           --cores="$SLURM_CPUS_PER_TASK" \
+                                                                           --save \
+                                                                           --method=bootstrap)
 
     # Python script outputs the path of the original file as the first field, so we have to extract the value
     # of the parameter from that and change the field to it
@@ -156,7 +177,10 @@ do
     # plot the energies therein
     AVGED_ENERGIES="$dir_path/energies_combined"
     gnuplot -e "set terminal pngcairo; set output '$AVGED_ENERGIES.png'; \
-            plot '$AVGED_ENERGIES' u 1:4 w yerr t 'data'; set title 'Averaged energies for $DIR/$dir'"
+                set xlabel 'Block'; \
+                set ylabel 'Total energy (per particle)'; \
+                set title 'Averaged total energy'; \
+                plot '$AVGED_ENERGIES' u 1:4 w yerr t 'data'"
 
     # perform a final block average
     # current block size is 20 for binned average, may change in the future
@@ -186,6 +210,13 @@ do
     printf "\n"
 
     # try to calculate a weighted average of structure factor
+    python $USER/scratch/scripts/postprocessing/combine_files_all_runs.py --dirname "$dir_path" --extension ".sq"
+
+    # plot the structure factor therein
+    AVGED_SQ="$dir_path/sq_combined"
+    gnuplot -e "set terminal pngcairo; set output '$AVGED_SQ.png'; \
+                set title 'Averaged structure factor'; \
+                plot '$AVGED_SQ' u 1:2 t 'data' ps 2 pt 10;" \
 
     # ----------------------------- #
     #   END STRUCTURAL QUANTITIES   #
@@ -214,7 +245,14 @@ gnuplot -e "directory='$DIR'" $USER/scratch/scripts/postprocessing/plot_sf_curve
 # plot the extrapolated superfluid fractions S(\infty) for variations in parameter
 echo "plotting extrapolated superfluid fractions versus parameter variations"
 gnuplot -e "set terminal pngcairo; set output '$EXTRAPOLATED.png'; \
-            plot '$EXTRAPOLATED' u 1:2:3 w yerr t 'data'"
+            set ylabel 'Extrapolated superfluid fraction'; \
+            set xlabel 'Parameter'; \
+            set title 'Extrapolated superfluid fraction versus parameter variations'; \
+            plot '$EXTRAPOLATED' u 1:2:3 w yerr t 'data' pt 7"
+
+# plot the structure factor with respect to parameter variations
+echo "Plotting structure factor S(q) versus parameter variations"
+gnuplot -e "directory='$DIR'" $USER/scratch/scripts/postprocessing/plot_sq_curve_variations.p
 
 # if submitted as a job script, also visualize the files for every run
 echo "creating plots for each and every run"
@@ -226,7 +264,10 @@ fi
 # plot the total energy dependence versus variations in parameter
 echo "plotting energy dependence on parameter"
 gnuplot -e "set terminal pngcairo; set output '$ENERGIES.png'; \
-            plot '$ENERGIES' u 1:6:7 w yerr t 'data'"
+            set xlabel 'parameter'; \
+            set ylabel 'total energy'; \
+            set title 'Dependence of total energy on parameter'; \
+            plot '$ENERGIES' u 1:6:7 w yerr t 'data' pt 7"
 
 # --------------------- #
 #   END VISUALIZATION   #

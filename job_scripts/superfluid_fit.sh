@@ -2,14 +2,17 @@
 # --------------------------------------------
 #SBATCH --time=00:30:00
 #SBATCH --account=def-massimo
-#SBATCH --mem=500M
 #SBATCH --job-name=sf_bootstrap
-#SBATCH --cpus-per-task=20
+#SBATCH --ntasks=1
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=48
 #SBATCH --output=/home/syu7/logs/sf_bootstrap/%x_id_%j.out
 # --------------------------------------------
 
-# Purpose of script is to iterate over ROOT_PATH and do superfluid bootstrap fitting for each of the
-# *.sd files inside
+usage () {
+     echo "Usage: ./superfluid_fit <simulation directory path> <skip value>"
+     exit 1
+}
 
 if [[ -n "$SLURM_JOB_NAME" ]]; then
      echo "script submitted as a slurm job, loading necessary modules"
@@ -23,24 +26,26 @@ mkdir -p "$USER/logs/sf_bootstrap"
 source "$USER/scratch/scripts/job_scripts/functions.sh"
 
 # command-line arguments
-ROOT_PATH=$1
+SUPERFLUID_FILE=$1
+SKIP=$2
 
-check_argument "$ROOT_PATH"
+check_argument "$SUPERFLUID_FILE" || usage
+check_argument "$SKIP" || usage
 
-SCRIPT_FILE="$USER/scratch/scripts/postprocessing/superfluid_fit.py"
+SCRIPT_FILE="$USER/scratch/scripts/postprocessing/bootstrap_fit.py"
 
 # echo "Running bootstrap analysis as part of SLURM job"
 
-cd "$ROOT_PATH" || exit 1
-CURRENT=$(pwd)
-
 # do bootstrap analysis
-# find "$ROOT_PATH" -type f -name "*.sd" -exec echo {} \;
-find "$CURRENT" -type f -name "*.sd" -exec python "$SCRIPT_FILE" --filename {} \
-     --cores=1 --throwaway_first --throwaway_last --xscaling 1 --no_bootstrap \;
-
-# second layer of processing
-# find "$ROOT_PATH" -type f -name "sd_fit_params.txt" -exec echo {} \;
-    
-
-# exit 1;
+python "$SCRIPT_FILE" \
+     --filename="$SUPERFLUID_FILE" \
+     --cores="$SLURM_CPUS_PER_TASK" \
+     --throwaway_first \
+     --throwaway_last \
+     --p_interval=0.15 \
+     --save \
+     --skip="$SKIP" \
+     --bootstrap_iterations=1000000 \
+     --verbose \
+     --filetype="sf_time"\
+     --method="bootstrap"
