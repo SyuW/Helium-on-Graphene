@@ -12,14 +12,62 @@ from bootstrap_fit import select_interval
 
 
 # check the quality of the final fit using a chi-squared test
-def check_fit():
-    return
+def check_fit(x, y_obs, yerr, params):
+    """
+    Check the fit using a chi-squared test
+
+    x - array of independent variates
+    y - array of dependent variates (observed from data)
+    yerr - error bars for dependent variate
+    params - fitting parameters
+
+    return:
+    chisq - chi-squared measure of fit
+    """
+    y_fit = fitting_func(x, *params)
+
+    return np.average((y_obs - y_fit) ** 2 / (yerr ** 2))
+
+
+# plot the fitting curve on top of data
+def plot_fit(x, y_obs, yerr, params, savename):
+    """
+    Plot the fit on top of the data
+
+    x - array of independent variates
+    y - array of dependent variates (observed from data)
+    yerr - error bars for dependent variate
+    params - fitting parameters
+    """
+    y_fit = fitting_func(x, *params)
+
+    plt.plot(x, y_fit, zorder=2)
+    plt.errorbar(x, y_obs, yerr=yerr, fmt='o', markersize=3,
+                           capsize=2, label="data", zorder=1)
+    plt.title(f"Fit: {fit_eqn}")
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.savefig(savename)
+    plt.clf()
+
+
+def tune_acceptance(displ, acc_rate):
+    """
+    Change the max displacement to achieve desired acceptance rate
+
+    displ - displacement value to be updated for chosen parameter
+    acc_rate - acceptance rate for moves involving chosen parameter
+
+    return:
+    new max displacement
+    """
+    return displ * 2 * acc_rate + 0.001
 
 
 # propose a new value for a fitting parameter as per Metropolis recipe
 def displace(p_old, delta_p):
     """
-    Metropolis sampling from parameter space
+    Sample from proposal distribution
 
     p_old - old value of parameter
     delta_p - magnitude of parameter displacement
@@ -57,14 +105,15 @@ def accept(x, y_obs, yerr, prev, trial, fitting_func):
     y_fit_trial = fitting_func(x, *trial)
 
     diff = (y_obs - y_fit_trial) ** 2 - (y_obs - y_fit_prev) ** 2
-    accept_ratio = np.exp(-np.sum(diff / (2 * yerr ** 2)))
+    exp_arg = np.sum(diff / (2 * yerr ** 2))
 
-    if accept_ratio > 1:
+    if exp_arg < 0:
         new = trial
         inc = 1
     else:
+        accept_ratio = np.exp(-exp_arg)
         u = rng.random()
-        if u > trial:
+        if u < accept_ratio:
             new = trial
             inc = 1
         else:
@@ -93,17 +142,9 @@ def engine(data, total_blocks, total_passes, filetype, savepath):
     y = data[:, 1]
     yerr = data[:, 2]
 
-    deltas = {name:1 for name in param_names}       # magnitudes of parameter displacements
-
     # set the start and end of the domain of x
-    start, end = select_interval(x, y, args.domain, args.throwaway_first, args.throwaway_last, args.p_interval)
-
-    # save files
-    raw_file = open(savepath + "/raw.param", "w")
-    accept_file = open(savepath + "/accept.param", "w")
-
-    raw_header = "# block   " + "   displace    ".join(param_names) + "   displace    \n"
-    raw_file.write(raw_header)
+    start, end = select_interval(x, y, args.domain, args.throwaway_first,
+                                 args.throwaway_last, args.p_interval)
 
     # set the spacing between adjacent datapoints
     if args.max_points:
@@ -112,7 +153,12 @@ def engine(data, total_blocks, total_passes, filetype, savepath):
         else:
             skip = args.skip
     else:
-        skip = args.skip 
+        skip = args.skip
+
+    # apply the modifications to data-points
+    x = x[start:end:skip]
+    y = y[start:end:skip]
+    yerr = yerr[start:end:skip]
 
     # load fitting parameters from checkpoint file if available
     if args.restart:
@@ -123,10 +169,35 @@ def engine(data, total_blocks, total_passes, filetype, savepath):
 
     # get fitting parameters using scipy.optimize.curve_fit (just to get started) 
     else:
-        params, _ = curve_fit(fitting_func, x[start:end:skip], y[start:end:skip],
-                            sigma=yerr[start:end:skip], absolute_sigma=True, bounds=fitting_bounds)
+        params, _ = curve_fit(fitting_func, x, y, sigma=yerr, absolute_sigma=True, bounds=fitting_bounds)
 
-    for _block_ in range(1,total_blocks+1):
+    print(f"Initial parameters: {params} with goodness of fit: {check_fit(x, y, yerr, params)}")
+
+    plot_fit(x, y, yerr, params, savepath + "/prior_fit.png")
+
+    # save files
+    raw_file = savepath + "/raw.param"
+    accept_file = savepath + "/accept.param"
+    param_line_writer = lambda params, block, chisq: f"{block}          " + "         ".join([f"{p:.6f}" for p in params]) \
+                                                       + f"     {chisq:.6f}\n"
+
+    raw_header = "# block" + " "*6 + (" "*6).join(param_names) + " "*6 + "Chisq\n"
+    acc_header = "# block" + " "*6 + "   displace   ".join(param_names) + "   displace   \n"
+
+    # write out the headers for each output file
+    with open(raw_file, "w") as rf:
+        rf.write(raw_header)
+
+    with open(accept_file, "w") as af:
+        af.write(acc_header)
+
+    # initialize master array for holding fitting parameter values after each block
+    master_array = np.zeros((total_blocks, len(params)))
+
+    # write checkpoint file every 'x' number of blocks
+    write_checkpoint = 50 # set x = 50
+
+    for _block_ in range(0, total_blocks): # results are recorded after each block
         
         # counting successful updates for calculating acceptance rates
         successes = {name:0 for name in param_names}
@@ -134,12 +205,12 @@ def engine(data, total_blocks, total_passes, filetype, savepath):
 
         for _pass_ in range(total_passes): # each pass corresponds to single Metropolis update
 
-            # randomly choose a particular parameter to update for a pass
+            # randomly choose a particular parameter to update during a pass
             i = rng.integers(0, 3)
 
             # proposal step
-            proposed = params
-            proposed[i] = displace(params[i], deltas[param_names[i]])
+            proposed = params.copy()
+            proposed[i] = displace(params[i], deltas[i])
 
             # acceptance step
             params, inc = accept(x, y, yerr, params, proposed, fitting_func)
@@ -148,11 +219,46 @@ def engine(data, total_blocks, total_passes, filetype, savepath):
             successes[param_names[i]] += inc
             attempts[param_names[i]] += 1
 
-        # write out results to output files
-        raw_file.write()
+        # add the parameters to the master array (for histogramming later)
+        master_array[_block_, :] = params
 
+        # compute goodness of fit:
+        goodness_of_fit = check_fit(x, y, yerr, params)
 
-    return params, param_err
+        # every block, write fitting parameters to file
+        with open(raw_file, "a") as rf:
+            rf.write(param_line_writer(params, _block_+1, goodness_of_fit))
+        
+        # every block, write acceptance rates and displacements to accept file
+        with open(accept_file, "a") as af:
+            acc_line = [str(_block_+1)]
+            for i, name in enumerate(param_names):
+                acc_rate = successes[name] / attempts[name]
+                disp = deltas[i]
+                # write out to file at end of every block
+                acc_line.append(f"{acc_rate:.6f}")
+                acc_line.append(f"{disp:.6f}")
+                # tune the max parameter displacements to achieve desired acceptance rate
+                deltas[i] = tune_acceptance(deltas[i], acc_rate)
+            af.write("   ".join(acc_line) + "\n")
+
+        if _block_ % write_checkpoint == 0:
+            np.save(savepath + "/checkpoint.npy", params) 
+
+    # write the final parameters
+    with open(raw_file, "a") as rf:
+        rf.write("-"*30)
+        rf.write("Final parameter estimates: ")
+        for i, name in enumerate(param_names):
+            rf.write(f"{name}:   mean: {np.mean(master_array[:, i])}    std: {np.std(master_array[:, i])}")
+
+    # plot the fit at the end of the simulation
+    plot_fit(x, y, yerr, params, savepath + "/posterior_fit.png")
+
+    final_params = np.mean(master_array, axis=0)
+    final_param_errs = np.std(master_array, axis=0)
+
+    return final_params, final_param_errs
 
 
 if __name__ == "__main__":
@@ -188,6 +294,7 @@ if __name__ == "__main__":
     y_label = ALLOWED_FILETYPES[args.filetype]["y-label"]
     param_names = ALLOWED_FILETYPES[args.filetype]["param names"]
     fitting_bounds = ALLOWED_FILETYPES[args.filetype]["bounds"]
+    deltas = ALLOWED_FILETYPES[args.filetype]["displacements"]
 
     # input checking
     if args.p_interval < 0 or args.p_interval > 1:
@@ -219,7 +326,7 @@ if __name__ == "__main__":
     rng = np.random.default_rng(927)
 
     # start Metropolis estimation of fitting parameter errors
-    engine(data, args.blocks, args.passes, args.filetype, save)
+    p, perr = engine(data, args.blocks, args.passes, args.filetype, save)
 
     # Estimation complete, print out how long it took
     end_time = time.perf_counter()

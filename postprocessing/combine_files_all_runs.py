@@ -205,11 +205,16 @@ def combine_sq(dirname, extension, block):
         print("Done processing structure factor files, now block averaging")
 
     # stack arrays into the form: row -- wavevector/weight, column -- run
-    structure_factors_array = np.column_stack(structure_factors)
+    sq_array = np.column_stack(structure_factors)
     weights_array = np.column_stack(weights)
 
     # perform the weighted average
-    sq_avg = np.sum(weights_array * structure_factors_array, axis=1) / np.sum(weights_array, axis=1)
+    sq_avg = np.sum(weights_array * sq_array, axis=1) / np.sum(weights_array, axis=1)
+
+    # compute the (unbiased) weighted standard deviation
+    sq_var = np.sum(weights_array * (sq_array - sq_avg[:, np.new_axis]) ** 2) \
+             / (np.sum(weights_array, axis=1) - 1)
+    sq_std = np.sqrt(sq_var)
 
     num_points = sq_avg.shape[0]
 

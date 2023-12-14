@@ -83,7 +83,8 @@ ALLOWED_FILETYPES = {
                                         "param names": ["A", "G", "C"],
                                         "x-label": r"Imaginary time ($K^{-1}$)",
                                         "y-label": r"Superfluid fraction",
-                                        "bounds": ([0,0,-0.1],[1000,1000,1])},
+                                        "bounds": ([0,0,-0.1],[1000,1000,1]),
+                                        "displacements": [1, 1, 1]},
 
                         "sf_proj_time": {"fit": superfluid_vs_proj_time_fitting_func,
                                         "fit eqn": "B * exp(-C * x) + S",
